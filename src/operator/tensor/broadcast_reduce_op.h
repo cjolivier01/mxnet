@@ -115,8 +115,8 @@ inline TShape ReduceAxisShapeImpl(const ReduceAxisParam& param, const TShape& is
 inline bool ReduceAxisShape(const nnvm::NodeAttrs& attrs,
                             std::vector<TShape> *in_attrs,
                             std::vector<TShape> *out_attrs) {
-  CHECK_EQ(in_attrs->size(), 1);
-  CHECK_EQ(out_attrs->size(), 1);
+  CHECK_EQ(in_attrs->size(), 1U);
+  CHECK_EQ(out_attrs->size(), 1U);
   TShape& ishape = (*in_attrs)[0];
   if (ishape.ndim() == 0) return false;
 
