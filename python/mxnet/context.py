@@ -20,10 +20,10 @@ class Context(object):
     Examples
     --------
     >>> # array on cpu
-    >>> cpu_array = mx.md.ones((2, 3))
+    >>> cpu_array = mx.nd.ones((2, 3))
     >>> # switch default context to GPU(2)
     >>> with mx.Context(mx.gpu(2)):
-    >>>     gpu_array = mx.md.ones((2, 3))
+    >>>     gpu_array = mx.nd.ones((2, 3))
     >>> gpu_array.context
     gpu(2)
     """
@@ -87,7 +87,7 @@ def cpu(device_id=0):
     Parameters
     ----------
     device_id : int, optional
-        The device id of the device. ``device_id`` is not needed for CPU.
+        The device id of the device. `device_id` is not needed for CPU.
         This is included to make interface compatible with GPU.
 
     Returns
