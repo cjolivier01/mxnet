@@ -119,6 +119,8 @@ scala-package/*/*/target/
 *.bak
 */node_modules/
 
+# JVM package
+jvm-package/java-api/src/main/java/org/apache/mxnet/javacpp/mxnet.java
 # Eclipse project config
 .project
 .cproject

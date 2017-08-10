@@ -45,7 +45,7 @@ export NVCC = nvcc
 DEV = 0
 
 # whether compile with debug
-DEBUG = 0
+DEBUG = 1
 
 # whether compile with profiler
 USE_PROFILER =
@@ -57,7 +57,7 @@ USE_SIGNAL_HANDLER =
 ADD_LDFLAGS =
 
 # the additional compile flags you want to add
-ADD_CFLAGS =
+ADD_CFLAGS = -I/usr/include/openblas
 
 #---------------------------------------------
 # matrix computation libraries for CPU/GPU
