@@ -28,6 +28,10 @@
 #include <nnvm/graph_attr_types.h>
 #include "../common/utils.h"
 #include "./exec_pass.h"
+#ifndef NDEBUG
+#include "../../tests/cpp/include/test_util.h"
+#endif
+
 #if MXNET_USE_MKL2017 == 1
 #include <mkl_memory.h>
 #include "../operator/mkl/mkl_memory-inl.h"
@@ -231,6 +235,11 @@ class FComputeExExecutor : public OpExecutor {
   FComputeEx fcompute_;
   ExecType exec_type_;
 };
+
+static void Dum(const OpExecutor *oe) {
+  PRINT_NDARRAYS(oe->in_array);
+  PRINT_NDARRAYS(oe->in_array);
+}
 
 // pass to attach operator executors
 Graph AttachOpExecs(Graph g) {

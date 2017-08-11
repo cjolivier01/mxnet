@@ -317,7 +317,7 @@ Graph AssignContext(Graph g,
   const auto& idx = g.indexed_graph();
   const auto& mutable_nodes = idx.mutable_input_nodes();
   // default use default context.
-  if (ctx_map.size() == 0) {
+  if (ctx_map.empty()) {
     g.attrs["context"] = std::make_shared<nnvm::any>(
         ContextVector(idx.num_nodes(), default_ctx));
     for (const auto& x : in_arg_ctxes) {
