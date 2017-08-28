@@ -30,6 +30,7 @@
 #include <string>
 #include <mutex>
 #include <memory>
+#include <dmlc/singleton.h>
 
 namespace mxnet {
 namespace engine {
@@ -91,7 +92,7 @@ struct DevStat {
  * \brief profiler that records the operation execution information
  *        and saves the profile statistics.
  */
-class Profiler {
+class Profiler : public dmlc::singleton::Disposable {
  public:
   enum ProfilerMode {
       kOnlySymbolic = 0,
@@ -128,6 +129,8 @@ class Profiler {
   OprExecStat* AddOprStat(int dev_type, uint32_t dev_id);
   /*! \return Profiler singleton */
   static Profiler* Get();
+
+  virtual std::string Name() const override { return "mxnet::engine::Profiler"; }
 
  protected:
   /*! \brief make constructor protected. */

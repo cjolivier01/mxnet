@@ -30,6 +30,7 @@
 #include <dmlc/base.h>
 #include <dmlc/logging.h>
 #include <dmlc/omp.h>
+#include <dmlc/singleton.h>
 #include <vector>
 #include <functional>
 #include <condition_variable>
@@ -295,7 +296,11 @@ class ThreadedEngine : public Engine {
     objpool_varblk_ref_ = common::ObjectPool<VersionedVarBlock>::_GetSharedRef();
     objpool_var_ref_    = common::ObjectPool<ThreadedVar>::_GetSharedRef();
 
+<<<<<<< e57426f869167be2562a47b6a80b30ff3251cd5c
     /*! \brief Set default OMP threads per kernel worker to default */
+=======
+    dmlc::singleton::Singletons::SetExternalDispose(true);
+>>>>>>> Singleton work
   }
   ~ThreadedEngine() {
     {
@@ -303,6 +308,12 @@ class ThreadedEngine : public Engine {
       kill_.store(true);
     }
     finished_cv_.notify_all();
+
+    // Dispose singletons
+    dmlc::singleton::Singletons *singletons = dmlc::singleton::Singletons::Get();
+    if(singletons) {
+      singletons->Dispose();
+    }
   }
 
  protected:

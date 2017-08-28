@@ -25,6 +25,7 @@
 #include <dmlc/base.h>
 #include <dmlc/logging.h>
 #include <dmlc/omp.h>
+#include <dmlc/singleton.h>
 #include <mxnet/base.h>
 #include <fstream>
 #include <thread>
@@ -71,8 +72,9 @@ Profiler::Profiler()
 
 Profiler* Profiler::Get() {
 #if MXNET_USE_PROFILER
-  static Profiler inst;
-  return &inst;
+  static Profiler *inst =
+    dmlc::singleton::Singletons::Get()->AddChild(std::shared_ptr<Profiler>(new Profiler())).get();
+  return inst;
 #else
   return nullptr;
 #endif
