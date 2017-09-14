@@ -1,10 +1,12 @@
 MXNet Change Log
 ================
-## 0.11.0-rc2
+## 0.11.0
 ### - Major Features
-  - Apple Core ML model converter
-  - Support for Keras v1.2.2
-  - For more information see [full release notes](https://cwiki.apache.org/confluence/display/MXNET/v0.11.0+Release+Notes)
+  - [Apple Core ML model converter](https://github.com/apache/incubator-mxnet/blob/master/tools/coreml/README.md)
+  - Support for [Keras v1.2.2](https://github.com/dmlc/keras/wiki/Installation)
+  - [Gluon Interface(experimental)](https://github.com/apache/incubator-mxnet/blob/v0.11.0/docs/api/python/gluon.md)
+  - Updated [LICENSE and NOTICE](https://github.com/apache/incubator-mxnet/pull/7565) files.
+  - For more information see [full release notes](https://cwiki.apache.org/confluence/display/MXNET/v0.11.0+Release+Notes)  
 ### - API Changes
   - Added `CachedOp`. You can now cache the operators that’s called frequently with the same set of arguments to reduce overhead.
   - Added sample_multinomial for sampling from multinomial distributions.
@@ -28,9 +30,9 @@ MXNet Change Log
   - Fixed context mismatch when loading optimizer states.
   - Fixed a bug in ReLU activation when using MKL.
   - Fixed a few race conditions that causes crashes on shutdown.
+  - Fixed [image-classification example code](https://github.com/apache/incubator-mxnet/pull/7545).
 ### - Refactors
   - Refactored TShape/TBlob to use int64 dimensions and DLTensor as internal storage. Getting ready for migration to DLPack. As a result TBlob::dev_mask_ and TBlob::stride_ are removed.
-
 
 ## 0.10.0
 - Overhauled documentation for commonly used Python APIs, Installation instructions, Tutorials, HowTos and MXNet Architecture.  
