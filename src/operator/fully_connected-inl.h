@@ -113,7 +113,14 @@ class FullyConnectedOp : public Operator {
     linalg_gemm(data, wmat, out, false, true, s);
     if (!param_.no_bias) {
       Tensor<xpu, 1, DType> bias = in_data[fullc::kBias].get<xpu, 1, DType>(s);
-      out += repmat(bias, data.size(0));
+      // Legacy approach shown here for comparison:
+      //   out += mshadow::expr::repmat(bias, data.size(0));
+#if 0
+      out += mshadow::expr::repmat(bias, data.size(0));
+#else
+      CHECK_EQ(data.size(0), out.size(0));  // check same row count in and out
+      AddBias(s, out, data, bias);
+#endif
     }
   }
 
@@ -177,6 +184,54 @@ class FullyConnectedOp : public Operator {
   }
 
  private:
+#if defined(__CUDACC__)
+  /*!
+   * \brief Add bias on GPU using legacy mshadow
+   * \param s - Stream (used to select which function)
+   * \param out - Output data
+   * \param input_data - Input data
+   * \param bias - The bias to be broadcast
+   */
+  MSHADOW_CINLINE static void AddBias(Stream<gpu> *s,
+                                      Tensor<gpu, 2, DType>& out,
+                                      const Tensor<gpu, 2, DType>& input_data,
+                                      const Tensor<gpu, 1, DType>& bias) {
+    out += mshadow::expr::repmat(bias, input_data.size(0));
+  }
+#endif  // defined(__CUDACC__)
+  /*!
+   * \brief Add bias on CPU with cache-friendly memory access
+   * \param s - Stream (used to select which function)
+   * \param out - Output data
+   * \param input_data - Input data
+   * \param bias - The bias to be broadcast
+   */
+  MSHADOW_CINLINE static void AddBias(Stream<cpu> *s,
+                                      Tensor<cpu, 2, DType>& out,
+                                      const Tensor<cpu, 2, DType>& input_data,
+                                      const Tensor<cpu, 1, DType>& bias) {
+    const size_t out_size = out.shape_.Size();
+    const size_t bias_size = bias.shape_.Size();
+    if(out_size != bias_size) {
+      const int row_count = out.shape_[0];
+      const size_t gap = out_size / row_count;
+      CHECK_EQ(gap, bias_size);
+      DType *outp = out.dptr_;
+      #pragma omp parallel for num_threads(Engine::Get()->num_omp_threads_per_worker())
+      for (int r = 0; r < row_count; ++r) {
+        const DType *in_ptr = bias.dptr_;
+        DType *out_ptr = outp + r * gap;
+        for (size_t i = 0; i < gap; ++i, ++out_ptr, ++in_ptr) {
+          *out_ptr += *in_ptr;
+        }
+      }
+    } else {
+      mxnet_op::Kernel<mxnet_op::op_with_req<mshadow::op::plus, kWriteInplace>, cpu>::
+      Launch(s, out.shape_.Size(), out.dptr_, out.dptr_, bias.dptr_);
+    }
+  }
+
+  /*! \brief Parameters for this fully-connected layer */
   FullyConnectedParam param_;
 };  // class FullyConnectedOp
 
@@ -257,7 +312,7 @@ class FullyConnectedProp : public OperatorProperty {
   }
 
   OperatorProperty* Copy() const override {
-    FullyConnectedProp* fc_sym = new FullyConnectedProp();
+    auto* fc_sym = new FullyConnectedProp();
     fc_sym->param_ = this->param_;
     return fc_sym;
   }

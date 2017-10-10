@@ -100,7 +100,8 @@ class BasicOperatorData {
 #endif
       , initializeForward_(0)   // unit testing may call inits in any order based
       , initializeBackward_(0)  // upon its use-case (ie may not want to run forward pass first)
-      , initializeCallback_(0) {
+      , initializeCallback_(0)
+      , generator_(new std::mt19937()){
     opContext_.is_train = true;
     opContext_.run_ctx.stream = nullptr;
 
@@ -123,10 +124,14 @@ class BasicOperatorData {
       shape_input_vec_.resize(opProp.ListArguments().size());
       op_.reset(opProp.CreateOperatorEx(getContext(), &shape_input_vec_, in_type));
       if (op_) {
+        const size_t output_count = opProp.ListOutputs().size();
+        const size_t aux_count = opProp.ListAuxiliaryStates().size();
         // Figure out what sort of blobs we need to allocate
         std::vector<TShape> out_shape, aux_shape;
+        out_shape.resize(output_count);
+        aux_shape.resize(aux_count);
         opProp.InferShape(&shape_input_vec_, &out_shape, &aux_shape);
-        std::vector<int> out_type, aux_type;
+        std::vector<int> out_type(output_count, -1), aux_type(aux_count, -1);
         opProp.InferType(in_type, &out_type, &aux_type);
 
         // Allocate top blobs (input)
@@ -174,9 +179,9 @@ class BasicOperatorData {
     initForward(opProp, in_type);
     if (!initializeBackward_++) {
       for (size_t x = 0, n = static_cast<size_t>(opProp.NumVisibleOutputs()); x < n; ++x) {
-        CHECK_LT(x, c_.blob_input_vec_.size());
-        allocateBlob(&c_.blob_out_grad_, c_.blob_input_vec_[x].shape_,
-                     false, c_.blob_input_vec_[x].type_flag_);
+        CHECK_LT(x, c_.blob_output_vec_.size());
+        allocateBlob(&c_.blob_out_grad_, c_.blob_output_vec_[x].shape_,
+                     false, c_.blob_output_vec_[x].type_flag_);
       }
 
       for (size_t x = 0, n = c_.blob_input_vec_.size(); x < n; ++x) {
@@ -386,6 +391,21 @@ class BasicOperatorData {
     copy(blob, sourceData, 0, sourceDataSize);
   }
 
+  void FillRandom() {
+    std::uniform_real_distribution<DType> distribution(-1.0, 1.0);
+    for(size_t j = 0, jn = this->c_.all_blob_vects_.size(); j < jn; ++j) {
+      std::vector<TBlob> *data_vect = this->c_.all_blob_vects_[j];
+      if(data_vect) {
+        for (size_t i = 0, n = data_vect->size(); i < n; ++i) {
+          TBlob &blob = (*data_vect)[i];
+          test::patternFill<DType>(&blob, [this, &distribution]() -> DType {
+            return distribution(generator());
+          });
+        }
+      }
+    }
+  }
+
   /*! \brief Input and output blobs */
   OpContext                 opContext_;
 
@@ -520,6 +540,9 @@ class BasicOperatorData {
     return allocateBlob(&standalone_blobs_, dest, shape, isGPU, dtype);
   }
 
+  /*! \brief mt19937 generator for random number generator */
+  std::mt19937& generator() { return *generator_; }
+
   /*! \brief Performance timing categories */
   enum TimingId {
     Forward,
@@ -538,6 +561,9 @@ class BasicOperatorData {
   std::atomic<int>            initializeCallback_;
   /*! \brief scoped lifecycle management of allocated blobs */
   std::list<std::unique_ptr<test::StandaloneBlob>> standalone_blobs_;
+
+  /*! \brief Per-test generator */
+  std::unique_ptr<std::mt19937> generator_;
 
  public:
   /*! Timing instrumentation */
