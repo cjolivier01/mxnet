@@ -205,29 +205,32 @@ class OperatorRunner {
       test::op::OpInfo<OperatorProp, DType, AccReal> info;
       switch (D) {
         case 0:
-          info = RunGenericOperatorForward(isGPU, timing_shape.ndim() ? timing_shape
-                                                                      : TShape({batchSize,
-                                                                                channels,
-                                                                                width}),
+          info = RunGenericOperatorForward(isGPU,
+                                           timing_shape.ndim() ? timing_shape
+                                                               : TShape({batchSize,
+                                                                         channels,
+                                                                         width}),
                                            kwargs,
                                            count);
           break;
         case 1:
-          info = RunGenericOperatorForward(isGPU, timing_shape.ndim()? timing_shape
-                                                                     : TShape({batchSize,
-                                                                               channels,
-                                                                               height,
-                                                                               width}),
+          info = RunGenericOperatorForward(isGPU,
+                                           timing_shape.ndim()? timing_shape
+                                                              : TShape({batchSize,
+                                                                        channels,
+                                                                        height,
+                                                                        width}),
                                            kwargs,
                                            count);
           break;
         case 2:
-          info = RunGenericOperatorForward(isGPU, timing_shape.ndim() ? timing_shape
-                                                                      : TShape({batchSize,
-                                                                                channels,
-                                                                                depth,
-                                                                                height,
-                                                                                width}),
+          info = RunGenericOperatorForward(isGPU,
+                                           timing_shape.ndim() ? timing_shape
+                                                               : TShape({batchSize,
+                                                                         channels,
+                                                                         depth,
+                                                                         height,
+                                                                         width}),
                                            kwargs,
                                            count);
           break;
