@@ -161,9 +161,6 @@ class OperatorRunner {
                   int dim = 0,
                   size_t count = 1,
                   TShape timing_shape = TShape()) {
-
-    //TShape timing_shape;
-
     std::cout << std::endl << std::flush;
 
 #ifdef NDEBUG
@@ -179,7 +176,11 @@ class OperatorRunner {
     test::perf::TimingInstrument timing;
 
     std::stringstream ss;
-    ss << "Timing: " << COUNT << " iterations";
+    ss << "Timing: " << COUNT << " iterations of " << count << " calls";
+    if (timing_shape.ndim()) {
+      ss << ", shape = " << timing_shape << std::endl << std::flush;
+    }
+    std::cout << ss.str();
 
     for (size_t i = 0; i < COUNT; ++i) {
       index_t batchSize = 1;
