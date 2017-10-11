@@ -28,6 +28,9 @@ typedef std::vector<std::pair<std::string, std::string> > kwargs_t;
 
 const kwargs_t basic_fullyconn_args = { {"num_hidden", "250"} };
 
+/*!
+ * \brief Generic bidirectional sanity test
+ */
 TEST(FULLY_CONNECTED, ExecuteBidirectionalFullyConnected) {
   TShape shape({5, 5});
   kwargs_t kwargs = basic_fullyconn_args;
@@ -36,6 +39,9 @@ TEST(FULLY_CONNECTED, ExecuteBidirectionalFullyConnected) {
   runner.RunBidirectional(false, shape, kwargs, 1);
 }
 
+/*!
+ * \brief Timing test for CPU
+ */
 TEST(FULLY_CONNECTED, FullyConnectedTimingCPU) {
   kwargs_t kwargs = basic_fullyconn_args;
   test::op::OpInfo<mxnet::op::FullyConnectedProp, float, float> info;
@@ -53,6 +59,9 @@ TEST(FULLY_CONNECTED, FullyConnectedTimingCPU) {
 }
 
 #if MXNET_USE_CUDA == 1
+/*!
+ * \brief Timing test for GPU
+ */
 TEST(FULLY_CONNECTED, FullyConnectedTimingGPU) {
   kwargs_t kwargs = basic_fullyconn_args;
   test::op::OpInfo<mxnet::op::FullyConnectedProp, float, float> info;
