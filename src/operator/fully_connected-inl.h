@@ -115,7 +115,7 @@ class FullyConnectedOp : public Operator {
       Tensor<xpu, 1, DType> bias = in_data[fullc::kBias].get<xpu, 1, DType>(s);
       // Legacy approach shown here for comparison:
       //   out += mshadow::expr::repmat(bias, data.size(0));
-#if 0
+#if 1
       out += mshadow::expr::repmat(bias, data.size(0));
 #else
       CHECK_EQ(data.size(0), out.size(0));  // check same row count in and out
