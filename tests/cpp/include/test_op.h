@@ -101,7 +101,7 @@ class BasicOperatorData {
       , initializeForward_(0)   // unit testing may call inits in any order based
       , initializeBackward_(0)  // upon its use-case (ie may not want to run forward pass first)
       , initializeCallback_(0)
-      , generator_(new std::mt19937()){
+      , generator_(new std::mt19937()) {
     opContext_.is_train = true;
     opContext_.run_ctx.stream = nullptr;
 
@@ -202,6 +202,7 @@ class BasicOperatorData {
 
   /*! \brief Run operator forward */
   void forward(const size_t count = 1) {
+    const std::vector<OpReqType> req(c_.blob_output_vec_.size(), kWriteTo);
     // Possibly move data to/from CPU and GPU (outside of timing scope)
     MXNET_CUDA_ONLY(std::unique_ptr<GPUOpData> gpuData(isGPU_ ?
                        new GPUOpData(c_, &opContext_) : nullptr));
@@ -211,7 +212,7 @@ class BasicOperatorData {
       for (size_t x = 0; x < count; ++x) {
         op()->Forward(opContext_,
                       c_.blob_input_vec_,
-                      {kWriteTo, kWriteTo, kWriteTo},
+                      req,
                       c_.blob_output_vec_,
                       c_.blob_aux_states_);
       }
@@ -219,7 +220,7 @@ class BasicOperatorData {
       for (size_t x = 0; x < count; ++x) {
         MXNET_CUDA_ONLY(op()->Forward(opContext_,
                                       gpuData->blob_input_vec_,
-                                      {kWriteTo, kWriteTo, kWriteTo},
+                                      req,
                                       gpuData->blob_output_vec_,
                                       gpuData->blob_aux_states_));
       }
@@ -228,6 +229,7 @@ class BasicOperatorData {
 
   /*! \brief Run operator backwards */
   void backward(const size_t count = 1) {
+    const std::vector<OpReqType> req(c_.blob_output_vec_.size(), kWriteTo);
     // Possibly move data to/from CPU and GPU (outside of timing scope)
     MXNET_CUDA_ONLY(std::unique_ptr<GPUOpData> gpuData(isGPU_ ?
                       new GPUOpData(c_, &opContext_) : nullptr));
@@ -239,7 +241,7 @@ class BasicOperatorData {
                        c_.blob_out_grad_,
                        c_.blob_input_vec_,
                        c_.blob_output_vec_,
-                       {kWriteTo, kWriteTo, kWriteTo},
+                       req,
                        c_.blob_in_grad_,
                        c_.blob_aux_states_);
       }
@@ -249,7 +251,7 @@ class BasicOperatorData {
                                        gpuData->blob_out_grad_,
                                        gpuData->blob_input_vec_,
                                        gpuData->blob_output_vec_,
-                                       {kWriteTo, kWriteTo, kWriteTo},
+                                       req,
                                        gpuData->blob_in_grad_,
                                        gpuData->blob_aux_states_));
       }
@@ -393,9 +395,9 @@ class BasicOperatorData {
 
   void FillRandom() {
     std::uniform_real_distribution<DType> distribution(-1.0, 1.0);
-    for(size_t j = 0, jn = this->c_.all_blob_vects_.size(); j < jn; ++j) {
+    for (size_t j = 0, jn = this->c_.all_blob_vects_.size(); j < jn; ++j) {
       std::vector<TBlob> *data_vect = this->c_.all_blob_vects_[j];
-      if(data_vect) {
+      if (data_vect) {
         for (size_t i = 0, n = data_vect->size(); i < n; ++i) {
           TBlob &blob = (*data_vect)[i];
           test::patternFill<DType>(&blob, [this, &distribution]() -> DType {
@@ -701,7 +703,7 @@ class Validator {
     }
     const TBlob& b1 = bv1[idx];
     const TBlob& b2 = bv2[idx];
-    if (print && test::debugOutput) {
+    if (print && test::debug_output) {
       test::print(RunContext(), &(std::cout << "Blob 1:"), b1, true, true);
       test::print(RunContext(), &(std::cout << "Blob 2:"), b2, true, true);
     }
