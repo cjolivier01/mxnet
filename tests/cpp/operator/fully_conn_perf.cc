@@ -49,7 +49,7 @@ TEST(FULLY_CONNECTED, ExecuteBidirectionalFullyConnected) {
 /*!
  * \brief Timing test for CPU
  */
-TEST(FULLY_CONNECTED, FullyConnectedTimingCPU) {
+TEST(FULLY_CONNECTED, TimingCPU) {
   kwargs_t kwargs = basic_fullyconn_args;
   test::OperatorRunner<mxnet::op::FullyConnectedProp, test::GenericOperatorData<float, float>>
     runner;
@@ -78,7 +78,7 @@ TEST(FULLY_CONNECTED, FullyConnectedTimingCPU) {
 /*!
  * \brief Timing test for GPU
  */
-TEST(FULLY_CONNECTED, FullyConnectedTimingGPU) {
+TEST(FULLY_CONNECTED, TimingGPU) {
   kwargs_t kwargs = basic_fullyconn_args;
   test::op::OpInfo<mxnet::op::FullyConnectedProp, float, float> info;
   test::OperatorRunner<mxnet::op::FullyConnectedProp,

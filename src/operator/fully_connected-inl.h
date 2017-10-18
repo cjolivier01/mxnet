@@ -60,6 +60,8 @@ struct FullyConnectedParam : public dmlc::Parameter<FullyConnectedParam> {
   }
 };
 
+#define USE_MSHADOW_ADD_BIAS
+
 /**
  * \brief This is the implementation of fully connected operator.
  * \tparam xpu The device that the op will be executed on.
@@ -115,7 +117,7 @@ class FullyConnectedOp : public Operator {
       Tensor<xpu, 1, DType> bias = in_data[fullc::kBias].get<xpu, 1, DType>(s);
       // Legacy approach shown here for comparison:
       //   out += mshadow::expr::repmat(bias, data.size(0));
-#if 0
+#ifdef USE_MSHADOW_ADD_BIAS
       out += mshadow::expr::repmat(bias, data.size(0));
 #else
       CHECK_EQ(data.size(0), out.size(0));  // check same row count in and out
@@ -196,7 +198,14 @@ class FullyConnectedOp : public Operator {
                                       Tensor<gpu, 2, DType>& out,
                                       const Tensor<gpu, 2, DType>& input_data,
                                       const Tensor<gpu, 1, DType>& bias) {
-    out += mshadow::expr::repmat(bias, input_data.size(0));
+    const size_t out_size = out.shape_.Size();
+    const size_t bias_size = bias.shape_.Size();
+    if(out_size != bias_size) {
+      out += mshadow::expr::repmat(bias, input_data.size(0));
+    } else {
+      mxnet_op::Kernel<mxnet_op::op_with_req<mshadow::op::plus, kWriteInplace>, gpu>::
+      Launch(s, out.shape_.Size(), out.dptr_, out.dptr_, bias.dptr_);
+    }
   }
 #endif  // defined(__CUDACC__)
   /*!
@@ -217,7 +226,8 @@ class FullyConnectedOp : public Operator {
       const size_t gap = out_size / row_count;
       CHECK_EQ(gap, bias_size);
       DType *outp = out.dptr_;
-      #pragma omp parallel for num_threads(Engine::Get()->num_omp_threads_per_worker())
+      const int omp_thread_count = Engine::Get()->num_omp_threads_per_worker();
+      #pragma omp parallel for num_threads(omp_thread_count)
       for (int r = 0; r < row_count; ++r) {
         const DType *in_ptr = bias.dptr_;
         DType *out_ptr = outp + r * gap;
