@@ -36,9 +36,10 @@ namespace mxnet {
 namespace op {
 
 // branchless
-template <typename T> int sgn(T val) {
-  return (T(0) < val) - (val < T(0));
-}
+//template <typename T>
+//int MSHADOW_XINLINE sgn(T val) {
+//  return (T(0) < val) - (val < T(0));
+//}
 
 
 struct init_mem_2bit {
@@ -122,6 +123,9 @@ struct init_threshold_2bit {
 };
 
 struct quantize_2bit {
+  static int sgn_[2];
+  static uint8_t bits_[8];
+
   MSHADOW_XINLINE static void Map(int block_id,
                                   int grad_size,
                                   float *out,
@@ -136,25 +140,32 @@ struct quantize_2bit {
     int start = block_id << 4;
     int end = (start + 16 <= grad_size) ? start + 16 : grad_size;
     char* block_ptr = reinterpret_cast < char* > (compr_block);
-
-    for (int i = start; i < end; i++) {
+    float *rz = residual;
+    float *grd = grad;
+    //const int sgn[] = { -1, 1 };
+    const float thres[] = {neg_threshold, pos_threshold};
+//    const int bits[] = {0x80, 0x10, 0x08, 0x01, 0xc0, 0x30, 0x0c, 0x03};
+   // const int negbits =
+    for (int i = start; i < end; ++i, ++rz, ++grd) {
       // // adds 1 when i-start divisible by 4
       char * curr_byte = block_ptr + ((i-start) >> 2);
-
 //      float curr_value = grad[i] + residual[i];
-      residual[i] += grad[i];
-      float curr_value = residual[i];
+      *rz += *grd;
+      const float curr_value = *rz;
       // for pos, sign = 1
       // for neg, sign = 0
       // for 0, sign is 0 here, but we don't use it
-      int sign = curr_value > 0 ;
-      if (sign * curr_value >= pos_threshold ) {
+      //const int sign = sgn(curr_value);
+      int sign = sgn_[(0 < curr_value)]; // - (curr_value < 0);
+      if (curr_value * sign >= pos_threshold ) {
         // set 11 for positive
-        // set 10 for negative
-        *curr_byte |= ((sign + 2) << (6 - ((i & 3) << 1)));
+        // set 01 for negative
+        const int idx = ++sign & 1;
+        *curr_byte |= bits_[(idx << 2) + (i & 3)];
+          //((sign + 2) <<  (6 - ((i & 3) << 1)));
         // for positive, subtract threshold
         // for negative, subtract neg threshold = adding positive threshold
-        residual[i] -= sign * pos_threshold;
+        *rz -= thres[idx];
       }
 
 //      if (curr_value >= pos_threshold) {

@@ -27,6 +27,10 @@
 namespace mxnet {
 namespace op {
 
+int quantize_2bit::sgn_[2] = { -1, 1 };
+uint8_t quantize_2bit::bits_[8] = { 0x80, 0x10, 0x08, 0x01, 0xc0, 0x30, 0x0c, 0x03 };
+
+
 DMLC_REGISTER_PARAMETER(TwoBitParam);
 
 NNVM_REGISTER_OP(_contrib_quantize_2bit)
