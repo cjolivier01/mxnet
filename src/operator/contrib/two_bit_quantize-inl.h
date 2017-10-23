@@ -142,9 +142,9 @@ struct quantize_2bit {
     char* block_ptr = reinterpret_cast < char* > (compr_block);
     float *rz = residual;
     float *grd = grad;
-    //const int sgn[] = { -1, 1 };
+    const int sgn[] = { -1, 1 };
     const float thres[] = {neg_threshold, pos_threshold};
-//    const int bits[] = {0x80, 0x10, 0x08, 0x01, 0xc0, 0x30, 0x0c, 0x03};
+    const int bits[] = {0x80, 0x10, 0x08, 0x01, 0xc0, 0x30, 0x0c, 0x03};
    // const int negbits =
     for (int i = start; i < end; ++i, ++rz, ++grd) {
       // // adds 1 when i-start divisible by 4
