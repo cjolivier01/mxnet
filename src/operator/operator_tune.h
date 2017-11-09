@@ -122,19 +122,16 @@ struct static_init_var {
   __macro$(__VA_ARGS__, int64_t);
 
 
-#define IMPLEMENT_BASIC_WORKLOAD_FOR_TYPE(__op$, __typ$) \
+#define IMPLEMENT_BASIC_WORKLOAD(__op$, __v1$, __typ$) \
   namespace mxnet_op { \
-  template<> size_t mxnet::op::mxnet_op::tuned_op<__op$, __typ$>::workload_ = INT_MAX / 4; \
-  }  /* namespace mxnet_op */
-
-#define IMPLEMENT_BASIC_WORKLOAD_FOR_TYPE(__op$) \
-  MSHADOW_MACRO_FOREACH_TYPE(MSHADOW_MACRO_FOREACH_TYPE, __op$)
+  template<> size_t mxnet::op::mxnet_op::tuned_op<__op$, __typ$>::workload_ = (__v1$) == 0 ? \
+     (INT_MAX / 4) : (__v1$); }  /* namespace mxnet_op */
 
 /*!
  * \brief Implement tuning objects for a forward blank (no arguments) kernel operator
  */
-#define _IMPLEMENT_BLANK_WORKLOAD_FWD(__op$, __typ$) \
-  IMPLEMENT_BASIC_WORKLOAD(__op$, __typ$); \
+#define _IMPLEMENT_BLANK_WORKLOAD_FWD(__op$, __v1$, __typ$) \
+  IMPLEMENT_BASIC_WORKLOAD(__op$, __v1$, __typ$); \
   namespace mxnet_op { \
   template<> int mxnet::op::mxnet_op::tuned_op<__op$, __typ$>::UseOMP( \
     size_t N, size_t omp_threads) { \
@@ -148,8 +145,8 @@ struct static_init_var {
 /*!
  * \brief Implement tuning objects for a forward unary kernel operator
  */
-#define _IMPLEMENT_UNARY_WORKLOAD_FWD(__op$, __typ$) \
-  IMPLEMENT_BASIC_WORKLOAD(__op$, __typ$); \
+#define _IMPLEMENT_UNARY_WORKLOAD_FWD(__op$, __v1$, __typ$) \
+  IMPLEMENT_BASIC_WORKLOAD(__op$, __v1$, __typ$); \
   namespace mxnet_op { \
   template<> int mxnet::op::mxnet_op::tuned_op<__op$, __typ$>::UseOMP( \
     size_t N, size_t omp_threads) { \
@@ -163,8 +160,8 @@ struct static_init_var {
 /*!
  * \brief Implement tuning objects for a backward unary kernel operator
  */
-#define _IMPLEMENT_UNARY_WORKLOAD_BWD(__op$, __typ$) \
-  IMPLEMENT_BASIC_WORKLOAD(mxnet::op::mxnet_op::backward_grad<__op$>, __typ$); \
+#define _IMPLEMENT_UNARY_WORKLOAD_BWD(__op$, __v1$, __typ$) \
+  IMPLEMENT_BASIC_WORKLOAD(mxnet::op::mxnet_op::backward_grad<__op$>, __v1$, __typ$); \
   namespace mxnet_op { \
   template<> \
   int mxnet::op::mxnet_op::tuned_op<mxnet::op::mxnet_op::backward_grad<__op$>, __typ$>::UseOMP( \
@@ -179,8 +176,8 @@ struct static_init_var {
 /*!
  * \brief Implement tuning objects for a forward binary kernel operator
  */
-#define _IMPLEMENT_BINARY_WORKLOAD_FWD(__op$, __typ$) \
-  IMPLEMENT_BASIC_WORKLOAD(__op$, __typ$); \
+#define _IMPLEMENT_BINARY_WORKLOAD_FWD(__op$, __v1$, __typ$) \
+  IMPLEMENT_BASIC_WORKLOAD(__op$, __v1$, __typ$); \
   namespace mxnet_op { \
   template<> int mxnet::op::mxnet_op::tuned_op<__op$, __typ$>::UseOMP( \
     size_t N, size_t omp_threads) { \
@@ -194,8 +191,8 @@ struct static_init_var {
 /*!
  * \brief Implement tuning objects for a backward binary kernel operator
  */
-#define _IMPLEMENT_BINARY_WORKLOAD_BWD(__op$, __typ$) \
-  IMPLEMENT_BASIC_WORKLOAD(mxnet::op::mxnet_op::backward_grad<__op$>, __typ$); \
+#define _IMPLEMENT_BINARY_WORKLOAD_BWD(__op$, __v1$, __typ$) \
+  IMPLEMENT_BASIC_WORKLOAD(mxnet::op::mxnet_op::backward_grad<__op$>, __v1$, __typ$); \
   namespace mxnet_op { \
   template<> \
     int mxnet::op::mxnet_op::tuned_op<mxnet::op::mxnet_op::backward_grad<__op$>, __typ$>::UseOMP( \
@@ -210,20 +207,20 @@ struct static_init_var {
 /*!
  * \brief Macros for manually adding new blank, unary and binary operators to the tuning set
  */
-#define IMPLEMENT_UNARY_WORKLOAD_FWD(__op$) \
-  MSHADOW_MACRO_FOREACH_TYPE(_IMPLEMENT_UNARY_WORKLOAD_FWD, __op$)
+#define IMPLEMENT_UNARY_WORKLOAD_FWD(__op$, __v1$) \
+  MSHADOW_MACRO_FOREACH_TYPE(_IMPLEMENT_UNARY_WORKLOAD_FWD, __op$, __v1$)
 
-#define IMPLEMENT_BLANK_WORKLOAD_FWD(__op$) \
-  MSHADOW_MACRO_FOREACH_TYPE(_IMPLEMENT_BLANK_WORKLOAD_FWD, __op$)
+#define IMPLEMENT_BLANK_WORKLOAD_FWD(__op$, __v1$) \
+  MSHADOW_MACRO_FOREACH_TYPE(_IMPLEMENT_BLANK_WORKLOAD_FWD, __op$, __v1$)
 
-#define IMPLEMENT_UNARY_WORKLOAD_BWD(__op$) \
-  MSHADOW_MACRO_FOREACH_TYPE(_IMPLEMENT_UNARY_WORKLOAD_BWD, __op$)
+#define IMPLEMENT_UNARY_WORKLOAD_BWD(__op$, __v1$) \
+  MSHADOW_MACRO_FOREACH_TYPE(_IMPLEMENT_UNARY_WORKLOAD_BWD, __op$, __v1$)
 
-#define IMPLEMENT_BINARY_WORKLOAD_FWD(__op$) \
-  MSHADOW_MACRO_FOREACH_TYPE(_IMPLEMENT_BINARY_WORKLOAD_FWD, __op$)
+#define IMPLEMENT_BINARY_WORKLOAD_FWD(__op$, __v1$) \
+  MSHADOW_MACRO_FOREACH_TYPE(_IMPLEMENT_BINARY_WORKLOAD_FWD, __op$, __v1$)
 
-#define IMPLEMENT_BINARY_WORKLOAD_BWD(__op$) \
-  MSHADOW_MACRO_FOREACH_TYPE(_IMPLEMENT_BINARY_WORKLOAD_BWD, __op$)
+#define IMPLEMENT_BINARY_WORKLOAD_BWD(__op$, __v1$) \
+  MSHADOW_MACRO_FOREACH_TYPE(_IMPLEMENT_BINARY_WORKLOAD_BWD, __op$, __v1$)
 
 }  // namespace op
 }  // namespace mxnet
