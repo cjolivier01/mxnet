@@ -431,6 +431,11 @@ else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
 endif()
 
+if(USE_OPERATOR_TUNING)
+  add_executable(mxnet-tblgen tools/tblgen/tblgen.cc)
+  target_link_libraries(mxnet-tblgen ${mxnet_LINKER_LIBS})
+endif()
+
 set(MXNET_INSTALL_TARGETS mxnet)
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin" AND USE_MXNET_LIB_NAMING)
   add_library(mxnet MODULE ${SOURCE})
