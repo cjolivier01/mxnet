@@ -372,7 +372,7 @@ struct Kernel<OP, cpu> {
     }
 #else
     for (int i = 0; i < N; ++i) {
-        OP::Map(i, args...);
+      OP::Map(i, dest, args...);
     }
 #endif
   }
