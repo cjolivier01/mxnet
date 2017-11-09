@@ -91,8 +91,6 @@ class OperatorTuneBase {
   static std::atomic<bool> calculated_;
   /*! \brief Time in nanoseconds for OMP overhead */
   static duration_t omp_overhead_;
-  /*! \brief Output insertable (into code) instantiation+default-value macros */
-  static bool output_tuning_data_;
   /*! \brief Print debug/trace output for tuning info */
   static bool verbose_tuning_info_;
   /*! \brief Tuning scale factor */
@@ -170,7 +168,9 @@ class OperatorTune : public OperatorTuneBase {
         }
       }
       // Use this environment variable to generate new tuning statistics
-      output_tuning_data_ = dmlc::GetEnv("MXNET_OUTPUT_TUNING_DATA", false);
+      // In order to avoid printing too many copies, only the float32 object prints
+      output_tuning_data_ = mshadow::DataType<DType>::kFlag == mshadow::kFloat32
+                            && dmlc::GetEnv("MXNET_OUTPUT_TUNING_DATA", false);
       // If outputting tuning data, then also output verbose logging info
       verbose_tuning_info_ = dmlc::GetEnv("MXNET_VERBOSE_TUNING_INFO", false);
 
@@ -569,6 +569,8 @@ class OperatorTune : public OperatorTuneBase {
   static volatile tune::TuningMode tuning_mode_;
   /*! \brief Arbitary object to modify in OMP loop */
   static volatile int volatile_int_;
+  /*! \brief Output insertable (into code) instantiation+default-value macros */
+  static bool output_tuning_data_;
 };
 
 /*!
@@ -581,29 +583,6 @@ class UnaryOpTune : public OperatorTune<DType> {
   typedef OperatorTune<DType> Super;
   using duration_t = typename Super::duration_t;
   using Tick = typename Super::Tick;
-
-  /*!
-   * \brief Some output type conversion to mxnet/mshadow types
-   * \param type string
-   * \return Possibly corrected type name
-   * \warning Do not call from within a performance-sensitive area
-   */
-  static std::string MakeOutputType(const std::string& typ) {
-    if (typ == "int") {
-      return "int32_t";
-    }
-    if (typ == "long") {
-      return "int64_t";
-    }
-    if (typ == "unsigned char") {
-      return "uint8_t";
-    }
-    if (typ == "char" || typ == "signed char") {
-      return "int8_t";
-    }
-    // Just return the default
-    return typ;
-  }
 
   /*!
    * \brief Determine the time it takes a kernel operator to execute WORKLOAD_COUNT iterations
@@ -712,10 +691,8 @@ class UnaryOpTune : public OperatorTune<DType> {
   static void TuneBlankOperator() {
     mxnet::op::mxnet_op::tuned_op<OP, DType>::workload_ = GetBlankWorkload<OP>();
     if (Super::output_tuning_data_) {
-      std::cout << "_IMPLEMENT_UNARY_WORKLOAD_FWD("
+      std::cout << "IMPLEMENT_UNARY_WORKLOAD_FWD("
                 << Super::template type_name<OP>()
-                << ", " << mxnet_op::tuned_op<OP, DType>::workload_
-                << ", " << MakeOutputType(Super::template type_name<DType>())
                 << ");  // NOLINT()" << std::endl << std::flush;  // For long lines
     }
   }
@@ -730,10 +707,8 @@ class UnaryOpTune : public OperatorTune<DType> {
   static void TuneUnaryOperator() {
     mxnet::op::mxnet_op::tuned_op<OP, DType>::workload_ = GetUnaryWorkload<OP>();
     if (Super::output_tuning_data_) {
-      std::cout << "_IMPLEMENT_UNARY_WORKLOAD_FWD("
+      std::cout << "IMPLEMENT_UNARY_WORKLOAD_FWD("
                 << Super::template type_name<OP>()
-                << ", " << mxnet_op::tuned_op<OP, DType>::workload_
-                << ", " << MakeOutputType(Super::template type_name<DType>())
                 << ");  // NOLINT()" << std::endl << std::flush;  // For long lines
     }
   }
@@ -749,11 +724,8 @@ class UnaryOpTune : public OperatorTune<DType> {
     mxnet::op::mxnet_op::tuned_op<mxnet_op::backward_grad<OP>, DType>::workload_ =
       GetBinaryWorkload<mxnet::op::mxnet_op::backward_grad<OP>>();
     if (Super::output_tuning_data_) {
-      std::cout << "_IMPLEMENT_UNARY_WORKLOAD_BWD("
+      std::cout << "IMPLEMENT_UNARY_WORKLOAD_BWD("
                 << Super::template type_name<OP>()
-                << ", "
-                << mxnet_op::tuned_op<mxnet::op::mxnet_op::backward_grad<OP>, DType>::workload_
-                << ", " << MakeOutputType(Super::template type_name<DType>())
                 << ");  // NOLINT()" << std::endl << std::flush;  // For long lines
     }
   }
@@ -769,10 +741,8 @@ class UnaryOpTune : public OperatorTune<DType> {
   static void TuneBlankOperatorEx() {
     mxnet::op::mxnet_op::tuned_op<OP, DType>::workload_ = GetBlankWorkloadEx<OP>();
     if (Super::output_tuning_data_) {
-      std::cout << "_IMPLEMENT_BLANK_WORKLOAD_FWD("
+      std::cout << "IMPLEMENT_BLANK_WORKLOAD_FWD("
                 << Super::template type_name<OP>()
-                << ", " << mxnet_op::tuned_op<OP, DType>::workload_
-                << ", " << MakeOutputType(Super::template type_name<DType>())
                 << ");  // NOLINT()" << std::endl << std::flush;  // For long lines
     }
   }
@@ -837,10 +807,8 @@ class BinaryOpTune : public UnaryOpTune<DType> {
   static void TuneBinaryOperator() {
     mxnet_op::tuned_op<OP, DType>::workload_ = Super::template GetBinaryWorkload<OP>();
     if (Super::Super::output_tuning_data_) {
-      std::cout << "_IMPLEMENT_BINARY_WORKLOAD_FWD("
+      std::cout << "IMPLEMENT_BINARY_WORKLOAD_FWD("
                 << Super::template type_name<OP>()
-                << ", " << mxnet_op::tuned_op<OP, DType>::workload_
-                << ", " << Super::MakeOutputType(Super::template type_name<DType>())
                 << ");  // NOLINT()" << std::endl << std::flush;  // For long lines
     }
   }
@@ -854,11 +822,8 @@ class BinaryOpTune : public UnaryOpTune<DType> {
     mxnet::op::mxnet_op::tuned_op<mxnet_op::backward_grad<OP>, DType>::workload_ =
       Super::template GetTertiaryWorkload<mxnet::op::mxnet_op::backward_grad<OP>>();
     if (Super::Super::output_tuning_data_) {
-      std::cout << "_IMPLEMENT_BINARY_WORKLOAD_BWD("
+      std::cout << "IMPLEMENT_BINARY_WORKLOAD_BWD("
                 << Super::template type_name<OP>()
-                << ", "
-                << mxnet_op::tuned_op<mxnet::op::mxnet_op::backward_grad<OP>, DType>::workload_
-                << ", " << Super::MakeOutputType(Super::template type_name<DType>())
                 << ");  // NOLINT()" << std::endl << std::flush;  // For long lines
     }
   }
