@@ -29,11 +29,13 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include <set>
 #include "../mshadow_op.h"
 #include "../elemwise_op_common.h"
 #include "./elemwise_binary_op.h"
 #include "../operator_common.h"
 #include "broadcast_reduce-inl.h"
+#include "../mxnet_op.h"
 
 namespace mxnet {
 namespace op {
@@ -134,24 +136,94 @@ inline int BinaryBroadcastShapeCompact(const TShape& lshape, const TShape& rshap
 }
 
 namespace mxnet_op {
-template<int ndim, typename DType, typename OP>
-struct binary_broadcast_kernel {
-  MSHADOW_XINLINE static void Map(int base, int length, OpReqType req,
-                                  const Shape<ndim>& lstride, const Shape<ndim>& rstride,
-                                  const Shape<ndim>& oshape, DType* lhs, DType* rhs,
-                                  DType* out, int lsize, int rsize) {
-    Shape<ndim> coord = unravel(base, oshape);
-    index_t lidx = dot(coord, lstride);
-    index_t ridx = dot(coord, rstride);
-    KERNEL_ASSIGN(out[base], req, OP::Map(lhs[lidx], rhs[ridx]));
-    // starts from 1 to avoid extra inc at end of loop
-    for (int i = 1; i < length; ++i) {
-      inc(&coord, oshape, &lidx, lstride, &ridx, rstride);
-      KERNEL_ASSIGN(out[base+i], req, OP::Map(lhs[lidx], rhs[ridx]));
+
+/*!
+ * \brief Type-level specialization base class for binary_broadcast_kernel
+ * \tparam DType
+ */
+template<typename DType>
+struct tunable_binary_broadcast_kernel {
+  /*! \brief Allows LaunchEx to know the data type for tuning selection */
+  typedef DType DataType;
+  /*!
+   * \brief Run-time tuning of sub-op-independent binary_broadcast_kernel
+   */
+  static void Tune() {
+    constexpr int dim = 2;  // Have to pick one to represent all
+    Shape<dim> oshape, lstride, rstride;
+    for (int i = 0; i < dim; ++i) {
+      oshape[i] = i + 1;
+      lstride[i] = i + 1;
+      rstride[i] = i + 1;
     }
+    const int base = 0;
+    const int length = 10;  // length factor
+    std::multiset<int64_t> durations;
+    for (int pass = 0; pass < 3; ++pass) {
+      typename OperatorTuneBase::Timer timer;
+      for (int i = 0; i < OperatorTuneBase::WORKLOAD_COUNT; ++i) {
+        Shape<dim> coord = unravel(base, oshape);
+        index_t lidx = 1, ridx = 2;
+        for (int l = 0; l < length; ++l) {
+          inc(&coord, oshape, &lidx, lstride, &ridx, rstride);
+        }
+      }
+      const OperatorTuneBase::duration_t dd = timer.duration();
+      durations.insert(dd);
+    }
+    int64_t duration = *++durations.begin();  // use median time
+    tuned_op<tunable_binary_broadcast_kernel, DType>::workload_ = static_cast<size_t>(duration);
   }
 };
 
+template<int ndim, typename DType, typename OP>
+struct binary_broadcast_kernel : public tunable_binary_broadcast_kernel<DType> {
+  /*! \brief Declare type for tuned_op */
+  typedef tuned_op<tunable_binary_broadcast_kernel<DType>, DType> TunedOp;
+
+  /*! \brief Map function for binary_broadcast_kernel */
+  MSHADOW_XINLINE static void Map(int base, int length, OpReqType req,
+                                  const Shape<ndim>& lstride, const Shape<ndim>& rstride,
+                                  const Shape<ndim>& oshape, DType* lhs, DType* rhs,
+                                  DType* out) {
+    if (req != kNullOp) {
+      Shape <ndim> coord = unravel(base, oshape);
+      index_t lidx = static_cast<index_t>(dot(coord, lstride));
+      index_t ridx = static_cast<index_t>(dot(coord, rstride));
+      KERNEL_ASSIGN(out[base], req, OP::Map(lhs[lidx], rhs[ridx]));
+      // starts from 1 to avoid extra inc at end of loop
+      for (int i = 1; i < length; ++i) {
+        inc(&coord, oshape, &lidx, lstride, &ridx, rstride);
+        KERNEL_ASSIGN(out[base + i], req, OP::Map(lhs[lidx], rhs[ridx]));
+      }
+    }
+  }
+
+  /*!
+   * \brief Decide whether to use OpenMP parallelization
+   * \tparam Args Variable number and types of arguments (passed same args as Map())
+   * \param N Number of iterations
+   * \param thread_count Number of OMP threads available
+   * \param req Req type (i.e. kNullOp, kWriteTo, kAddTo, etc)
+   * \param args remaining (unused) arguments
+   * \return true if OMP parallelization should be used for the N iterations
+   */
+  template<typename ...Args>
+  static bool UseOMP(const size_t N, const size_t thread_count, OpReqType req, Args... args) {
+    if (req != kNullOp) {
+      CHECK_GT(thread_count, 0) << "Invalid thread count: " << thread_count;
+      const uint64_t length = (N + thread_count - 1) / thread_count;
+      // OP::Map() is called 'length' times for each map call
+      uint64_t wl = tuned_op<OP, DType>::workload_ * length;
+      // Add timing for two dot products
+      wl += (tuned_op<mshadow::op::plus, DType>::workload_ * ndim) << 1;
+      wl += (tuned_op<mshadow::op::mul, DType>::workload_ * ndim) << 1;
+      wl += (TunedOp::workload_ * length) / 10;  // divide by tuning length factor
+      return OperatorTuneByType<DType>::UseOMP(N, thread_count, wl);
+    }
+    return false;
+  }
+};
 }  // namespace mxnet_op
 
 template<typename xpu, typename OP>
@@ -160,7 +232,6 @@ void BinaryBroadcastCompute(const nnvm::NodeAttrs& attrs,
                             const std::vector<TBlob>& inputs,
                             const std::vector<OpReqType>& req,
                             const std::vector<TBlob>& outputs) {
-  using namespace mxnet_op;
   TShape new_lshape, new_rshape, new_oshape;
   int ndim = BinaryBroadcastShapeCompact(inputs[0].shape_, inputs[1].shape_, outputs[0].shape_,
                                          &new_lshape, &new_rshape, &new_oshape);
@@ -170,13 +241,12 @@ void BinaryBroadcastCompute(const nnvm::NodeAttrs& attrs,
     mshadow::Stream<xpu> *s = ctx.get_stream<xpu>();
     MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
       BROADCAST_NDIM_SWITCH(ndim, NDim, {
-        Shape<NDim> oshape = new_oshape.get<NDim>();
-        Shape<NDim> lstride = calc_stride(new_lshape.get<NDim>());
-        Shape<NDim> rstride = calc_stride(new_rshape.get<NDim>());
-        Kernel<binary_broadcast_kernel<NDim, DType, OP>, xpu>::LaunchEx(
-            s, new_oshape.Size(), req[0], lstride, rstride, oshape,
-            inputs[0].dptr<DType>(), inputs[1].dptr<DType>(), outputs[0].dptr<DType>(),
-            inputs[0].Size(), inputs[1].Size());
+        mshadow::Shape<NDim> oshape = new_oshape.get<NDim>();
+        mshadow::Shape<NDim> lstride = mxnet_op::calc_stride(new_lshape.get<NDim>());
+        mshadow::Shape<NDim> rstride = mxnet_op::calc_stride(new_rshape.get<NDim>());
+        mxnet_op::Kernel<mxnet_op::binary_broadcast_kernel<NDim, DType, OP>, xpu>::
+        template LaunchEx(s, new_oshape.Size(), req[0], lstride, rstride, oshape,
+        inputs[0].dptr<DType>(), inputs[1].dptr<DType>(), outputs[0].dptr<DType>());
       });
     });
   }
@@ -249,8 +319,9 @@ void BinaryBroadcastBackwardUseIn(const nnvm::NodeAttrs& attrs,
                                   const std::vector<OpReqType>& req,
                                   const std::vector<TBlob>& outputs) {
   TShape new_lshape, new_rshape, new_oshape;
-  bool need_bc = BinaryBroadcastShapeCompact(outputs[0].shape_, outputs[1].shape_, inputs[0].shape_,
-                                             &new_lshape, &new_rshape, &new_oshape);
+  const bool need_bc = BinaryBroadcastShapeCompact(outputs[0].shape_,
+                                                   outputs[1].shape_, inputs[0].shape_,
+                                                   &new_lshape, &new_rshape, &new_oshape) != 0;
   if (!need_bc) {
     ElemwiseBinaryOp::BackwardUseIn<xpu, LOP, ROP>(attrs, ctx, inputs, req, outputs);
   } else {
