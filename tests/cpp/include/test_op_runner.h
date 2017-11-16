@@ -44,6 +44,14 @@ class OperatorRunner {
  public:
   typedef typename OperatorExecutor::DataType    DType;
 
+  OperatorRunner() {
+#ifdef NDEBUG
+    total_iterations_ = 50;
+#else
+    total_iterations_ = 5;
+#endif
+  }
+
   /*!
    * \brief Test operator forward pass
    * \param isGPU Whether this test is for GPU
@@ -130,27 +138,34 @@ class OperatorRunner {
              int dim = 0,
              size_t count = 1,
              const std::vector<TShape>& timing_shapes = {}) {
-#ifdef NDEBUG
-    size_t COUNT = 50;
-#else
-    size_t COUNT = 5;
-#endif
     if (mxnet::test::quick_test) {
-      COUNT = 2;
+      total_iterations_ = 2;
       count = 1;
     }
 
     test::perf::TimingInstrument timing;
 
     std::stringstream ss;
-    ss << "Timing: " << COUNT << " iterations of " << count << " calls";
+    ss << "Timing: " << total_iterations_ << " iterations of " << count << " calls";
     if (timing_shapes[0].ndim()) {
-      // TODO(cjolivier01): Print all shapes (if they differ)
-      ss << ", shape = " << timing_shapes[0] << std::endl << std::flush;
+      size_t lhs_total = 0;
+      ss << ", shape = ";
+      for (size_t i = 0, n = timing_shapes.size(); i < n; ++i) {
+        if (i) {
+          ss << ", ";
+        }
+        ss << timing_shapes[i];
+        if (!i) {
+          lhs_total = timing_shapes[i].Size();
+        }
+      }
+      ss << " = " << test::pretty_num(lhs_total) << " items " << std::endl << std::flush;
     }
-    std::cout << ss.str();
+    if (!mxnet::test::csv) {
+      std::cout << ss.str();
+    }
 
-    for (size_t i = 0; i < COUNT; ++i) {
+    for (size_t i = 0; i < total_iterations_; ++i) {
       index_t batchSize = 1;
       index_t channels = 1;
       index_t depth = 1;
@@ -217,15 +232,16 @@ class OperatorRunner {
       }
     }
 
-    if (verbose_) {
+    if (verbose_ && !mxnet::test::csv) {
       timing.print(&std::cout, label);
       std::cout << std::endl << std::flush;
     }
-
     return timing.data();
   }
 
   void set_verbose(bool verbose) { verbose_ = verbose; }
+
+  void set_total_iterations(size_t iterations) { total_iterations_ = iterations; }
 
  protected:
   static constexpr int TEST_BATCH_SIZE = 5;
@@ -241,6 +257,8 @@ class OperatorRunner {
   static constexpr int TIMING_DW = 64;
   /*! \brief verbose output */
   bool verbose_ = true;
+  /*! \brief Tital iterations */
+  size_t total_iterations_ = 10;
 };
 
 }  // namespace test

@@ -36,15 +36,15 @@ namespace op {
 #define COREOP_BWD_OP_NAME_VALUE_NONE   "[none]"
 
 enum TimingDirection {
-  Forward,
-  Backward
+  kForward,
+  kBackward
 };
 
 inline const char *TimingDirectionAsString(const TimingDirection td) {
   switch (td) {
-    case Forward:
+    case kForward:
       return "Forward";
-    case Backward:
+    case kBackward:
       return "Backward";
     default:
       CHECK(false) << "Unknown timing direction: " << static_cast<int>(td);
@@ -426,7 +426,7 @@ class CoreOpExecutor : public test::op::OperatorDataInitializer<DType>
   inline bool initBackward(const OpProp &opProp, std::vector<int> *in_type) { return true; }
 
   inline void forward(const size_t count) {
-    perf::TimingItem timeF(&OperatorExecutorTiming::GetTiming(), Forward, "Forward", count);
+    perf::TimingItem timeF(&OperatorExecutorTiming::GetTiming(), kForward, "Forward", count);
     VTuneResume profile;
     for (size_t i = 0; i < count; ++i) {
       Execute();
@@ -435,7 +435,7 @@ class CoreOpExecutor : public test::op::OperatorDataInitializer<DType>
 
   inline void backward(const size_t count) {
     CHECK(HasBackward());
-    perf::TimingItem timeF(&OperatorExecutorTiming::GetTiming(), Backward, "Backward", count);
+    perf::TimingItem timeF(&OperatorExecutorTiming::GetTiming(), kBackward, "Backward", count);
     VTuneResume profile;
     for (size_t i = 0; i < count; ++i) {
       ExecuteBackward();
@@ -610,6 +610,50 @@ class CoreOpProp {
 
 template<typename DType>
 using CoreOperatorRunner = test::OperatorRunner<CoreOpProp, CoreOpExecutor<DType>>;
+
+
+/*!
+ * \brief Rune a core op forward and backward
+ * \tparam DType Data type
+ * \param isGPU true if operation is to be run on the GPU
+ * \param op_kwargs Operator parameters
+ * \param op_name Operator name as registered with nnvm
+ * \param backward_op_name Backwards operator name as registered with nnvm
+ *        If blank, the runner will attempt to determine the backwards operator. If it fails,
+ *        an exception will be thrown.
+ *        If the string is [none], then no backward operator will be created or executed
+ */
+template<typename DType = float>
+inline void BasicRunCoreOpBidirectional(const bool isGPU,
+                                        bool verbose,
+                                        const kwargs_t& op_kwargs,
+                                        const std::vector<TShape>& shapes,
+                                        const char *op_name,
+                                        const char *backward_op_name = "") {
+  test::op::CoreOpExecutor<DType> op(isGPU, shapes);
+  op.set_verbose(false);
+
+  op.Init(op.ArgsWithOpName(op_kwargs, op_name, backward_op_name));
+
+  if (verbose) {
+    PRINT_NDARRAYS(op.ctx().run_ctx, op.inputs());
+    PRINT_NDARRAYS(op.ctx().run_ctx, op.outputs());
+  }
+  op.Execute();
+  if (verbose) {
+    PRINT_NDARRAYS(op.ctx().run_ctx, op.outputs());
+  }
+  if (op.HasBackward()) {
+    if (verbose) {
+      PRINT_NDARRAYS(op.ctx().run_ctx, op.bwd_inputs());
+      PRINT_NDARRAYS(op.ctx().run_ctx, op.bwd_outputs());
+    }
+    op.ExecuteBackward();
+    if (verbose) {
+      PRINT_NDARRAYS(op.ctx().run_ctx, op.bwd_outputs());
+    }
+  }
+}
 
 }  // namespace op
 }  // namespace test
