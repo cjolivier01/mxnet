@@ -37,6 +37,7 @@ else()
   project(mxnet CXX)
 endif()
 
+
 if(MSVC)
   set(SYSTEM_ARCHITECTURE x86_64)
 else()
