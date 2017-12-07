@@ -229,6 +229,10 @@ function(mshadow_select_nvcc_arch_flags out_variable)
     list(APPEND nvcc_archs_readable compute_${arch})
   endforeach()
 
+  if(SUPPORT_CXX11)
+    list(APPEND nvcc_flags "-std=c++11")
+  endif()
+
   string(REPLACE ";" " " nvcc_archs_readable "${nvcc_archs_readable}")
   set(${out_variable}          ${nvcc_flags}          PARENT_SCOPE)
   set(${out_variable}_readable ${nvcc_archs_readable} PARENT_SCOPE)
