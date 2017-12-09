@@ -97,7 +97,7 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
     cpu_priority_worker_.reset(new ThreadWorkerBlock<kPriorityQueue>());
     cpu_priority_worker_->pool.reset(new ThreadPool(
         cpu_priority_nthreads,
-        [this](std::shared_ptr<ThreadPool::SimpleEvent> ready_event) {
+        [this](std::shared_ptr<dmlc::SimpleManualEvent> ready_event) {
           this->CPUWorker(Context(), cpu_priority_worker_.get(), ready_event);
         }, true));
     // GPU tasks will be created lazily
@@ -119,11 +119,13 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
         if (opr_block->opr->prop == FnProperty::kCPUPrioritized) {
           cpu_priority_worker_->task_queue.Push(opr_block, opr_block->priority);
         } else {
-          const size_t nthreads = cpu_worker_nthreads_;
-          auto ptr = cpu_normal_workers_.Get(ctx.dev_id, [this, ctx, nthreads]() {
-            auto blk = new ThreadWorkerBlock<kWorkerQueue>();
-              blk->pool.reset(new ThreadPool(nthreads,
-                  [this, ctx, blk](std::shared_ptr<ThreadPool::SimpleEvent> ready_event) {
+          int dev_id = ctx.dev_id;
+          int nthread = cpu_worker_nthreads_;
+          auto ptr =
+          cpu_normal_workers_.Get(dev_id, [this, ctx, nthread]() {
+              auto blk = new ThreadWorkerBlock<kWorkerQueue>();
+              blk->pool.reset(new ThreadPool(nthread,
+                  [this, ctx, blk](std::shared_ptr<dmlc::SimpleManualEvent> ready_event) {
                     this->CPUWorker(ctx, blk, ready_event);
                   }, true));
             return blk;
@@ -261,7 +263,7 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
   template<dmlc::ConcurrentQueueType type>
   inline void CPUWorker(Context ctx,
                         ThreadWorkerBlock<type> *block,
-                        std::shared_ptr<ThreadPool::SimpleEvent> ready_event) {
+                        std::shared_ptr<dmlc::SimpleManualEvent> ready_event) {
     this->is_worker_ = true;
     auto* task_queue = &(block->task_queue);
     RunContext run_ctx{ctx, nullptr};
