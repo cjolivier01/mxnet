@@ -19,6 +19,9 @@
 
 include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag("-std=c++11"   SUPPORT_CXX11)
+if(USE_CXX14_IF_AVAILABLE)
+  check_cxx_compiler_flag("-std=c++14"   SUPPORT_CXX14)
+endif()
 
 ################################################################################################
 # Short command for cuDNN detection. Believe it soon will be a part of CUDA toolkit distribution.
@@ -121,12 +124,12 @@ endif ()
 # Usage:
 #   mshadow_select_nvcc_arch_flags(out_variable)
 function(mshadow_select_nvcc_arch_flags out_variable)
-  
+
   set(CUDA_ARCH_LIST "Common" CACHE STRING "Select target NVIDIA GPU achitecture.")
   set_property( CACHE CUDA_ARCH_LIST PROPERTY STRINGS "" "All" "Common" ${CUDA_KNOWN_GPU_ARCHITECTURES} )
   mark_as_advanced(CUDA_ARCH_NAME)
-    
-    
+
+
   if("X${CUDA_ARCH_LIST}" STREQUAL "X" )
     set(CUDA_ARCH_LIST "All")
   endif()
@@ -204,7 +207,7 @@ function(mshadow_select_nvcc_arch_flags out_variable)
   if(cuda_arch_ptx)
     list(REMOVE_DUPLICATES cuda_arch_ptx)
   endif()
-    
+
   message(STATUS "cuda arch bin: ${cuda_arch_bin}")
   message(STATUS "cuda arch ptx: ${cuda_arch_ptx}")
   set(nvcc_flags "")
@@ -227,6 +230,25 @@ function(mshadow_select_nvcc_arch_flags out_variable)
   foreach(arch ${cuda_arch_ptx})
     list(APPEND nvcc_flags -gencode arch=compute_${arch},code=compute_${arch})
     list(APPEND nvcc_archs_readable compute_${arch})
+  endforeach()
+
+  if(NOT MSVC)
+    if(SUPPORT_CXX14)
+      list(APPEND nvcc_flags "-std=c++14")
+    elseif(SUPPORT_CXX11)
+      list(APPEND nvcc_flags "-std=c++11")
+    endif()
+  endif()
+
+  string (REPLACE " " ";" CMAKE_CXX_FLAGS_STR "${CMAKE_CXX_FLAGS}")
+  foreach(_flag ${CMAKE_CXX_FLAGS_STR})
+    # Remove -std=c++XX flags
+    if(NOT "${_flag}" MATCHES "-std=.+")
+      # Remove link flags
+      if(NOT "${_flag}" MATCHES "-Wl,.+")
+        list(APPEND nvcc_flags "-Xcompiler ${_flag}")
+      endif()
+    endif()
   endforeach()
 
   string(REPLACE ";" " " nvcc_archs_readable "${nvcc_archs_readable}")

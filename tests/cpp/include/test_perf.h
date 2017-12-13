@@ -19,8 +19,8 @@
 
 /*!
  * Copyright (c) 2017 by Contributors
- * \file test_perf.h
- * \brief operator unit test utility functions
+ * \file perf.h
+ * \brief operator performance classes and functions
  * \author Chris Olivier
 */
 
@@ -88,13 +88,41 @@ inline uint64_t getNannoTickCount() {
 #define MICRO2S(__micro$)   (((__micro$) + 500000)/1000000)
 #define MICRO2SF(__micro$)  (MICRO2MSF(__micro$)/1000)
 
+struct Info {
+  explicit inline Info(const char *s)
+    : name_(s ? s : "")
+      , baseTime_(0)
+      , nestingCount_(0)
+      , cycleCount_(0)
+      , duration_(0) {}
+
+  inline Info(const Info &o)
+    : name_(o.name_)
+      , baseTime_(o.baseTime_.load())
+      , nestingCount_(o.nestingCount_.load())
+      , cycleCount_(o.cycleCount_.load())
+      , duration_(o.duration_.load()) {
+    CHECK_EQ(o.nestingCount_, 0U);
+  }
+
+  /*!
+   * \brief Return time for each operation in milliseconds
+   * \return Time for each operation in milliseconds
+   */
+  inline double TimeEach() const {
+    return static_cast<double>(duration_) / cycleCount_.load() / 1000.0f;
+  }
+
+  std::string name_;
+  std::atomic<uint64_t> baseTime_;
+  std::atomic<uint64_t> nestingCount_;
+  std::atomic<uint64_t> cycleCount_;  // Note that nesting may skew averages
+  std::atomic<uint64_t> duration_;
+};
+
+
 /*! \brief Calculate time between construction and destruction */
 class TimedScope {
-  std::string     label_;
-  uint64_t        startTime_;
-  uint64_t        stopTime_;
-  const size_t    count_;
-
  public:
   explicit inline TimedScope(const char *msg = nullptr, size_t count = 1, const bool start = true)
     : startTime_(start ? getMicroTickCount() : 0)
@@ -106,7 +134,7 @@ class TimedScope {
     }
   }
 
-  explicit inline TimedScope(const std::string& msg, size_t count = 1, const bool start = true)
+  explicit inline TimedScope(const std::string &msg, size_t count = 1, const bool start = true)
     : startTime_(start ? getMicroTickCount() : 0)
       , count_(count) {
     CHECK_NE(count, 0U);
@@ -150,6 +178,12 @@ class TimedScope {
     }
     std::cout << ss.str() << std::endl;
   }
+
+ private:
+  std::string label_;
+  uint64_t startTime_;
+  uint64_t stopTime_;
+  const size_t count_;
 };
 
 /*! \brief Accumulate separate timing values mapped by label/id -> total time spent */
@@ -158,8 +192,9 @@ class TimingInstrument {
   explicit TimingInstrument(const char *name = "")
     : name_(name) {
   }
+
   void startTiming(int id, const char *s) {
-    std::unique_lock<std::recursive_mutex>  lk(mutex_);
+    std::unique_lock<std::recursive_mutex> lk(mutex_);
     auto i = data_.find(id);
     if (i == data_.end()) {
       i = data_.emplace(std::make_pair(id, Info(s))).first;
@@ -168,8 +203,9 @@ class TimingInstrument {
       i->second.baseTime_ = getMicroTickCount();
     }
   }
+
   void stopTiming(int id, const size_t subIterationCount = 1) {
-    std::unique_lock<std::recursive_mutex>  lk(mutex_);
+    std::unique_lock<std::recursive_mutex> lk(mutex_);
     auto i = data_.find(id);
     CHECK_NE(i == data_.end(), true) << "Can't stop timing on an object that we don't know about";
     if (i != data_.end()) {
@@ -177,16 +213,17 @@ class TimingInstrument {
       if (!--i->second.nestingCount_) {
         CHECK_NE(i->second.baseTime_, 0U) << "Invalid base time";
         i->second.duration_.fetch_add(getMicroTickCount() - i->second.baseTime_);
-        i->second.baseTime_  = 0;
+        i->second.baseTime_ = 0;
         i->second.cycleCount_.fetch_add(subIterationCount);
       }
     }
   }
+
   uint64_t getDuration(int id) {
-    std::unique_lock<std::recursive_mutex>  lk(mutex_);
+    std::unique_lock<std::recursive_mutex> lk(mutex_);
     auto i = data_.find(id);
     if (i != data_.end()) {
-      const Info&        info = i->second;
+      const Info &info = i->second;
       const uint64_t duration = info.nestingCount_.load()
                                 ? info.duration_.load() +
                                   (getMicroTickCount() - info.baseTime_.load())
@@ -195,6 +232,7 @@ class TimingInstrument {
     }
     return 0;
   }
+
   bool isTiming(int id) {
     std::unordered_map<int, Info>::const_iterator i = data_.find(id);
     if (i != data_.end()) {
@@ -203,23 +241,23 @@ class TimingInstrument {
     return false;
   }
 
-  template <typename StreamType>
-  void print(StreamType *os, const std::string& label_, bool doReset = false) {
-    std::unique_lock<std::recursive_mutex>  lk(mutex_);
+  template<typename StreamType>
+  void print(StreamType *os, const std::string &label_, bool doReset = false) {
+    std::unique_lock<std::recursive_mutex> lk(mutex_);
     // Sorted output
     std::map<int, Info> data(data_.begin(), data_.end());
     for (std::map<int, Info>::const_iterator i = data.begin(), e = data.end();
-        i != e; ++i) {
-      const Info&        info = i->second;
+         i != e; ++i) {
+      const Info &info = i->second;
       const uint64_t duration = getDuration(i->first);
       *os << label_ << ": " << name_ << " Timing [" << info.name_ << "] "
           << (info.nestingCount_.load() ? "*" : "")
           << MICRO2MSF(duration) << " ms";
-        if (info.cycleCount_.load()) {
-          *os << ", avg: " << (MICRO2MSF(duration) / info.cycleCount_)
-              << " ms X " << info.cycleCount_ << " passes";
-        }
-        *os << std::endl;
+      if (info.cycleCount_.load()) {
+        *os << ", avg: " << (MICRO2MSF(duration) / info.cycleCount_)
+            << " ms X " << info.cycleCount_ << " passes";
+      }
+      *os << std::endl;
     }
     *os << std::flush;
     if (doReset) {
@@ -228,9 +266,9 @@ class TimingInstrument {
   }
 
   void reset() {
-    std::unique_lock<std::recursive_mutex>  lk(mutex_);
+    std::unique_lock<std::recursive_mutex> lk(mutex_);
     for (auto i = data_.begin(), e = data_.end();
-        i != e; ++i) {
+         i != e; ++i) {
       const int id = i->first;
       const bool wasTiming = isTiming(id);
       if (wasTiming) {
@@ -245,14 +283,14 @@ class TimingInstrument {
     }
   }
 
-  TimingInstrument& operator += (const TimingInstrument& o) {
+  TimingInstrument &operator+=(const TimingInstrument &o) {
     for (auto i = o.data_.begin(), e = o.data_.end();
-        i != e; ++i) {
+         i != e; ++i) {
       auto j = data_.find(i->first);
-      if (j != data_.end())  {
+      if (j != data_.end()) {
         const Info &oInfo = i->second;
         CHECK_EQ(oInfo.nestingCount_, 0U);
-        j->second.duration_   += oInfo.duration_;
+        j->second.duration_ += oInfo.duration_;
         j->second.cycleCount_ += oInfo.cycleCount_;
       } else {
         data_.insert(std::make_pair(i->first, i->second));
@@ -261,6 +299,7 @@ class TimingInstrument {
     return *this;
   }
 
+  typedef std::unordered_map<int, Info> timing_map_t;
   struct Info {
     explicit inline Info(const char *s)
       : name_(s ? s : "")
@@ -302,15 +341,13 @@ class TimingInstrument {
     std::atomic<uint64_t> duration_;
   };
 
-  typedef std::unordered_map<int, TimingInstrument::Info> timing_map_t;
-
-  const timing_map_t& data() const {
+  const timing_map_t &data() const {
     return data_;
   }
 
  private:
-  std::string                   name_;
-  mutable std::recursive_mutex  mutex_;
+  std::string name_;
+  mutable std::recursive_mutex mutex_;
   std::unordered_map<int, Info> data_;
 };
 
@@ -330,6 +367,7 @@ class TimingItem {
       ti_->startTiming(id, name);
     }
   }
+
   inline ~TimingItem() {
     if (ti_) {
       ti_->stopTiming(id_, subIterationCount_);
@@ -338,8 +376,8 @@ class TimingItem {
 
  private:
   TimingInstrument *ti_;
-  const int         id_;
-  const size_t      subIterationCount_;
+  const int id_;
+  const size_t subIterationCount_;
 };
 
 
