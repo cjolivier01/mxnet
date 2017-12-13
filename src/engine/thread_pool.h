@@ -42,15 +42,22 @@ class ThreadPool {
  public:
   /*! \brief Signal event upon destruction, even for exceptions (RAII) */
   struct SetReadyOnDestroy {
-    explicit inline SetReadyOnDestroy(const std::shared_ptr<SimpleEvent>& event)
+    explicit inline SetReadyOnDestroy(const std::shared_ptr<dmlc::ManualEvent>& event)
       : event_(event) {
       inline ~SetReadyOnDestroy() {
         if (event_) {
           event_->signal();
         }
       }
-      std::shared_ptr<dmlc::SimpleManualEvent>  event_;
+      std::shared_ptr<dmlc::ManualEvent>  event_;
     };
+    inline ~SetReadyOnDestroy() {
+      if (event_) {
+        event_->signal();
+      }
+    }
+    std::shared_ptr<dmlc::ManualEvent>  event_;
+  };
 
   /*!
    * \brief Constructor takes function to run.
@@ -65,13 +72,12 @@ class ThreadPool {
     }
   }
   explicit ThreadPool(size_t size,
-                      std::function<void(std::shared_ptr<dmlc::SimpleManualEvent> ready)> func,
+                      std::function<void(std::shared_ptr<dmlc::ManualEvent> ready)> func,
                       const bool wait)
       : worker_threads_(size) {
     CHECK_GT(size, 0);
-    ready_events_.reserve(size);
     for (auto& i : worker_threads_) {
-      std::shared_ptr<dmlc::SimpleManualEvent> ptr = std::make_shared<dmlc::SimpleManualEvent>();
+      std::shared_ptr<dmlc::ManualEvent> ptr = std::make_shared<dmlc::ManualEvent>();
       ready_events_.emplace_back(ptr);
       i = std::thread(func, ptr);
     }
@@ -90,7 +96,7 @@ class ThreadPool {
    * \brief Wait for all started threads to signal that they're ready
    */
   void WaitForReady() {
-    for (const std::shared_ptr<dmlc::SimpleManualEvent>& ptr : ready_events_) {
+    for (const std::shared_ptr<dmlc::ManualEvent>& ptr : ready_events_) {
       ptr->wait();
     }
   }
@@ -102,7 +108,7 @@ class ThreadPool {
   /*!
    * \brief Startup synchronization objects
    */
-  std::list<std::shared_ptr<dmlc::SimpleManualEvent>> ready_events_;
+  std::list<std::shared_ptr<dmlc::ManualEvent>> ready_events_;
   /*!
    * \brief Disallow default construction.
    */
