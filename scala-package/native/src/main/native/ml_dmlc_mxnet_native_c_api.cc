@@ -2511,9 +2511,11 @@ JNIEXPORT jint JNICALL Java_ml_dmlc_mxnet_LibInfo_mxCustomOpRegister
 }
 
 JNIEXPORT jint JNICALL Java_ml_dmlc_mxnet_LibInfo_mxSetProfilerConfig
-  (JNIEnv *env, jobject obj, jint jmode, jstring jfilename) {
+  (JNIEnv *env, jobject obj, jstring jmode, jstring jfilename, jint append_mode) {
   const char *fileName = env->GetStringUTFChars(jfilename, 0);
-  int ret = MXSetProfilerConfig(jmode, fileName);
+  const char *mode = env->GetStringUTFChars(jfilename, 0);
+  int ret = MXSetProfilerConfig(mode, fileName, append_mode);
+  env->ReleaseStringUTFChars(jmode, mode);
   env->ReleaseStringUTFChars(jfilename, fileName);
   return ret;
 }
