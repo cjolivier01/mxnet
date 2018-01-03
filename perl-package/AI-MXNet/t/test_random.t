@@ -87,7 +87,7 @@ sub check_with_device
             ]
         },
     );
-    my $shape = [1000, 1000];
+    my $shape = [100, 100];
     for my $symbdic (@symbols)
     {
         my $name = $symbdic->{name};

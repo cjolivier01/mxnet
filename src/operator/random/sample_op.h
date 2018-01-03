@@ -241,26 +241,30 @@ using FSampleCompute = std::function<void (const nnvm::NodeAttrs& attrs,
                                            TBlob* outputs)>;
 
 using mxnet::TBlob;
-using namespace mxnet::common::random;
 
 // Allocates a single chunk of workspace memory and partitions it into three
 // workspace tensors that hold the seeds as well as the distribution parameters.
 template<typename xpu, typename DType>
-MSHADOW_FORCE_INLINE void GetSamplingTempData(DType p1, DType p2, const OpContext& ctx,
+MSHADOW_FORCE_INLINE void GetSamplingTempData(index_t N, DType p1, DType p2, const OpContext& ctx,
+                                              Tensor<xpu, 1, unsigned int>* seeds,
                                               Tensor<xpu, 1, DType>* parm1,
                                               Tensor<xpu, 1, DType>* parm2) {
   Stream<xpu> *s = ctx.get_stream<xpu>();
+  const index_t nSeeds(OptSampleSeedNum<xpu>(N));
   // Combined memory requirement for the workspace data.
-  const index_t nInt((2 * sizeof(DType) + sizeof(unsigned) - 1) / sizeof(unsigned));
+  const index_t nInt(nSeeds + (2 * sizeof(DType) + sizeof(unsigned) - 1) / sizeof(unsigned));
   Tensor<xpu, 1, unsigned> wspace
     = ctx.requested[1].get_space_typed<xpu, 1, unsigned>(Shape1(nInt), s);
-  // Partition workspace into two chunks and initialize them.
-  DType *pspace = static_cast<DType*>(static_cast<void*>(wspace.dptr_));
+  // Partition workspace into three chunks and initialize them.
+  *seeds = Tensor<xpu, 1, unsigned>(wspace.dptr_, Shape1(nSeeds), s);
+  ctx.requested[0].get_random<xpu, float>(s)->GetRandInt(*seeds);
+  DType *pspace = static_cast<DType*>(static_cast<void*>(wspace.dptr_+nSeeds));
   *parm1 = Tensor<xpu, 1, DType>(pspace, Shape1(1), s);
   Copy(*parm1, Tensor<cpu, 1, DType>(&p1, Shape1(1)), s);
   *parm2 = Tensor<xpu, 1, DType>(pspace+1, Shape1(1), s);
   Copy(*parm2, Tensor<cpu, 1, DType>(&p2, Shape1(1)), s);
 }
+
 
 template<typename xpu, typename Sampler>
 struct SampleMaster;
@@ -274,14 +278,14 @@ struct SampleMaster<xpu, UniformSampler<xpu>> {
     Stream<xpu> *s = ctx.get_stream<xpu>();
     const SampleUniformParam& param = nnvm::get<SampleUniformParam>(attrs.parsed);
     CHECK_GE(param.high, param.low) << "low must be less or equal to high in uniform distribution";
+    Tensor<xpu, 1, unsigned int> seeds;
     Tensor<xpu, 1, float> low, high;
-    GetSamplingTempData<xpu, float>(param.low, param.high, ctx,
-                                    &low, &high);
+    GetSamplingTempData<xpu, float>(outputs->Size(), param.low, param.high, ctx,
+                                    &seeds, &low, &high);
     UniformSampler<xpu> sampler;
     MSHADOW_REAL_TYPE_SWITCH(outputs[0].type_flag_, OType, {
-      RandGenerator<xpu, OType> *pgen = ctx.requested[0].get_parallel_random<xpu, OType>();
       Tensor<xpu, 1, OType> out = outputs->FlatTo1D<xpu, OType>(s);
-      sampler.Sample(low, high, out, pgen, s);
+      sampler.Sample(low, high, out, seeds, s);
     });
   }
 };
@@ -295,13 +299,14 @@ struct SampleMaster<xpu, NormalSampler<xpu>> {
     Stream<xpu> *s = ctx.get_stream<xpu>();
     const SampleNormalParam& param = nnvm::get<SampleNormalParam>(attrs.parsed);
     CHECK_GT(param.scale, 0) << "scale parameter in gaussian has to be positive";
+    Tensor<xpu, 1, unsigned int> seeds;
     Tensor<xpu, 1, float> loc, scale;
-    GetSamplingTempData<xpu, float>(param.loc, param.scale, ctx, &loc, &scale);
+    GetSamplingTempData<xpu, float>(outputs->Size(), param.loc, param.scale, ctx,
+                                    &seeds, &loc, &scale);
     NormalSampler<xpu> sampler;
     MSHADOW_REAL_TYPE_SWITCH(outputs[0].type_flag_, OType, {
-      RandGenerator<xpu, OType> *pgen = ctx.requested[0].get_parallel_random<xpu, OType>();
       Tensor<xpu, 1, OType> out = outputs->FlatTo1D<xpu, OType>(s);
-      sampler.Sample(loc, scale, out, pgen, s);
+      sampler.Sample(loc, scale, out, seeds, s);
     });
   }
 };
@@ -316,13 +321,14 @@ struct SampleMaster<xpu, GammaSampler<xpu>> {
     const SampleGammaParam& param = nnvm::get<SampleGammaParam>(attrs.parsed);
     CHECK_GT(param.alpha, 0) << "alpha parameter in gamma distribution has to be positive";
     CHECK_GT(param.beta, 0) << "beta parameter in gamma distribution has to be positive";
+    Tensor<xpu, 1, unsigned int> seeds;
     Tensor<xpu, 1, float> alpha, beta;
-    GetSamplingTempData<xpu, float>(param.alpha, param.beta, ctx, &alpha, &beta);
+    GetSamplingTempData<xpu, float>(outputs->Size(), param.alpha, param.beta, ctx,
+                                    &seeds, &alpha, &beta);
     GammaSampler<xpu> sampler;
     MSHADOW_REAL_TYPE_SWITCH(outputs[0].type_flag_, OType, {
-      RandGenerator<xpu, OType> *pgen = ctx.requested[0].get_parallel_random<xpu, OType>();
       Tensor<xpu, 1, OType> out = outputs->FlatTo1D<xpu, OType>(s);
-      sampler.Sample(alpha, beta, out, pgen, s);
+      sampler.Sample(alpha, beta, out, seeds, s);
     });
   }
 };
@@ -336,13 +342,13 @@ struct SampleMaster<xpu, ExponentialSampler<xpu>> {
     Stream<xpu> *s = ctx.get_stream<xpu>();
     const SampleExponentialParam& param = nnvm::get<SampleExponentialParam>(attrs.parsed);
     CHECK_GT(param.lam, 0) << "lambda parameter in exponential distribution has to be positive";
+    Tensor<xpu, 1, unsigned int> seeds;
     Tensor<xpu, 1, float> lam, dummy;
-    GetSamplingTempData<xpu, float>(param.lam, 0, ctx, &lam, &dummy);
+    GetSamplingTempData<xpu, float>(outputs->Size(), param.lam, 0, ctx, &seeds, &lam, &dummy);
     ExponentialSampler<xpu> sampler;
     MSHADOW_REAL_TYPE_SWITCH(outputs[0].type_flag_, OType, {
-      RandGenerator<xpu, OType> *pgen = ctx.requested[0].get_parallel_random<xpu, OType>();
       Tensor<xpu, 1, OType> out = outputs->FlatTo1D<xpu, OType>(s);
-      sampler.Sample(lam, out, pgen, s);
+      sampler.Sample(lam, out, seeds, s);
     });
   }
 };
@@ -356,13 +362,13 @@ struct SampleMaster<xpu, PoissonSampler<xpu>> {
     Stream<xpu> *s = ctx.get_stream<xpu>();
     const SamplePoissonParam& param = nnvm::get<SamplePoissonParam>(attrs.parsed);
     CHECK_GE(param.lam, 0) << "lambda parameter in poisson distribution has to be non-negative";
+    Tensor<xpu, 1, unsigned int> seeds;
     Tensor<xpu, 1, float> lam, dummy;
-    GetSamplingTempData<xpu, float>(param.lam, 0, ctx, &lam, &dummy);
+    GetSamplingTempData<xpu, float>(outputs->Size(), param.lam, 0, ctx, &seeds, &lam, &dummy);
     PoissonSampler<xpu> sampler;
     MSHADOW_REAL_TYPE_SWITCH(outputs[0].type_flag_, OType, {
-      RandGenerator<xpu, OType> *pgen = ctx.requested[0].get_parallel_random<xpu, OType>();
       Tensor<xpu, 1, OType> out = outputs->FlatTo1D<xpu, OType>(s);
-      sampler.Sample(lam, out, pgen, s);
+      sampler.Sample(lam, out, seeds, s);
     });
   }
 };
@@ -377,13 +383,13 @@ struct SampleMaster<xpu, NegativeBinomialSampler<xpu>> {
     const SampleNegBinomialParam& param = nnvm::get<SampleNegBinomialParam>(attrs.parsed);
     CHECK_GE(param.k, 0) << "k parameter in negative binomial distribution has to be non-negative";
     CHECK_GE(param.p, 0) << "p parameter in negative binomial distribution has to be non-negative";
+    Tensor<xpu, 1, unsigned int> seeds;
     Tensor<xpu, 1, float> k, p;
-    GetSamplingTempData<xpu, float>(param.k, param.p, ctx, &k, &p);
+    GetSamplingTempData<xpu, float>(outputs->Size(), param.k, param.p, ctx, &seeds, &k, &p);
     NegativeBinomialSampler<xpu> sampler;
     MSHADOW_REAL_TYPE_SWITCH(outputs[0].type_flag_, OType, {
-      RandGenerator<xpu, OType> *pgen = ctx.requested[0].get_parallel_random<xpu, OType>();
       Tensor<xpu, 1, OType> out = outputs->FlatTo1D<xpu, OType>(s);
-      sampler.Sample(k, p, out, pgen, s);
+      sampler.Sample(k, p, out, seeds, s);
     });
   }
 };
@@ -400,13 +406,14 @@ struct SampleMaster<xpu, GeneralizedNegativeBinomialSampler<xpu>> {
       << "mu parameter in generalized negative binomial distribution has to be non-negative";
     CHECK_GE(param.alpha, 0)
       << "alpha parameter in generalized negative binomial distribution has to be non-negative";
+    Tensor<xpu, 1, unsigned int> seeds;
     Tensor<xpu, 1, float> mu, alpha;
-    GetSamplingTempData<xpu, float>(param.mu, param.alpha, ctx, &mu, &alpha);
+    GetSamplingTempData<xpu, float>(outputs->Size(), param.mu, param.alpha, ctx,
+                                    &seeds, &mu, &alpha);
     GeneralizedNegativeBinomialSampler<xpu> sampler;
     MSHADOW_REAL_TYPE_SWITCH(outputs[0].type_flag_, OType, {
-      RandGenerator<xpu, OType> *pgen = ctx.requested[0].get_parallel_random<xpu, OType>();
       Tensor<xpu, 1, OType> out = outputs->FlatTo1D<xpu, OType>(s);
-      sampler.Sample(mu, alpha, out, pgen, s);
+      sampler.Sample(mu, alpha, out, seeds, s);
     });
   }
 };
@@ -495,7 +502,7 @@ inline bool SampleOpType(const nnvm::NodeAttrs& attrs,
 }
 
 inline std::vector<ResourceRequest> SampleResource(const NodeAttrs& attrs) {
-  return { ResourceRequest::kParallelRandom, ResourceRequest::kTempSpace };
+  return { ResourceRequest::kRandom, ResourceRequest::kTempSpace };
 }
 
 }  // namespace op

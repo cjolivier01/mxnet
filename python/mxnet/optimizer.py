@@ -697,8 +697,7 @@ class SGLD(Optimizer):
         if self.clip_gradient is not None:
             grad = clip(grad, -self.clip_gradient, self.clip_gradient)
         weight[:] += - lr/2 * (grad + wd * weight) + normal(0, math.sqrt(lr),
-                                                            shape=weight.shape,
-                                                            ctx=weight.context)
+                                                            weight.shape, weight.context)
 
 
 @register  # pylint: disable=invalid-name
