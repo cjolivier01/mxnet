@@ -36,23 +36,11 @@ using namespace mxnet::op::mxnet_op;
 namespace mxnet {
 namespace op {
 
-<<<<<<< HEAD
-/*!
- * \brief Launch a generic kernel with parallel random generator.
- * \tparam gen random generator
- * \tparam N Number of iterations
- * \tparam Args Varargs type to eventually pass to the OP::Map() functoion
- */
-template<typename OP, typename xpu, typename GType, typename ...Args>
-inline static void LaunchRNG(mshadow::Stream<xpu> *s,
-                             common::random::RandGenerator<xpu, GType> *gen,
-                             const int N, Args... args) {
-  const int nloop = (N + RandGenerator<xpu>::kMinNumRandomPerThread - 1) /
-                    RandGenerator<xpu>::kMinNumRandomPerThread;
-  const int nthread = std::min(nloop, RandGenerator<xpu>::kNumRandomStates);
-  const int step = (N + nthread - 1) / nthread;
-  Kernel<OP, xpu>::Launch(s, nthread, *gen, N, step, args...);
-}
+// Elementary random number generation for int/uniform/gaussian in CPU and GPU.
+// Will use float data type whenever instantiated for half_t or any other non
+// standard real type.
+template<typename xpu, typename DType>
+class RandGenerator;
 
 template<typename DType>
 class RandGenerator<cpu, DType> {
