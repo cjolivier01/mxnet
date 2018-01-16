@@ -27,7 +27,8 @@ import pickle
 import io
 import sys
 import numpy as np
-
+import time
+from ... import profiler
 from . import sampler as _sampler
 from ... import nd, context
 
@@ -87,12 +88,18 @@ def default_batchify_fn(data):
     """Collate data into batch."""
     if isinstance(data[0], nd.NDArray):
         return nd.stack(*data)
-    elif isinstance(data[0], tuple):
+    elif isinstance(data[0], list):
+      if len(data[0]) != 1:
         data = zip(*data)
+      return [default_batchify_fn(i) for i in data]
+    elif isinstance(data[0], tuple):
+        if len(data[0]) != 1:
+            data = zip(*data)
         return [default_batchify_fn(i) for i in data]
     else:
         data = np.asarray(data)
-        return nd.array(data, dtype=data.dtype)
+        return data
+        #return nd.array(data, dtype=data.dtype)
 
 
 def default_mp_batchify_fn(data):
@@ -106,8 +113,9 @@ def default_mp_batchify_fn(data):
         return [default_mp_batchify_fn(i) for i in data]
     else:
         data = np.asarray(data)
-        return nd.array(data, dtype=data.dtype,
-                        ctx=context.Context('cpu_shared', 0))
+        return data
+        # return nd.array(data, dtype=data.dtype,
+        #                 ctx=context.Context('cpu_shared', 0))
 
 
 def worker_loop(dataset, key_queue, data_queue, batchify_fn):
@@ -201,6 +209,33 @@ class DataLoader(object):
             for batch in self._batch_sampler:
                 yield self._batchify_fn([self._dataset[idx] for idx in batch])
             return
+
+        # if self._num_workers == 0:
+        #     all_sampler = 0
+        #     all_batchify = 0
+        #     all_make_indexes = 0
+        #     len_batch_sampler = len(self._batch_sampler)
+        #
+        #     profiler.tune_resume()
+        #
+        #     start_sampler = time.time()
+        #     for batch in self._batch_sampler:
+        #         time_sampler = time.time() - start_sampler
+        #         all_sampler += time_sampler
+        #         batch_len = len(batch)
+        #         # batch is a list of indexes into self._dataset[] representing the shuffled records
+        #         start_make_indexes = time.time()
+        #         indexes = [self._dataset[idx] for idx in batch]
+        #         all_make_indexes += time.time() - start_make_indexes
+        #         pre_batchify = time.time()
+        #         yield self._batchify_fn(indexes)
+        #         time_batchify = time.time() - pre_batchify
+        #         all_batchify += time_batchify
+        #         #print('sampler: {}, batchify: {}'.format(time_sampler, time_batchify))
+        #         start_sampler = time.time()
+        #     profiler.tune_pause()
+        #     print('all_sampler: {}, all_batchify: {}, all_make_indexes: {}'.format(all_sampler, all_batchify, all_make_indexes))
+        #     return
 
         key_queue = Queue()
         data_queue = Queue(2*self._num_workers)

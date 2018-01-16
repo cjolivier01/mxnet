@@ -79,7 +79,6 @@ class GPUPooledStorageManager final : public StorageManager {
     used_memory_ -= size;
   }
 
- private:
   void ReleaseAll();
   // used memory
   size_t used_memory_ = 0;

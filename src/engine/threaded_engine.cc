@@ -448,7 +448,7 @@ void ThreadedEngine::OnCompleteStatic(
   OprBlock *opr_block = static_cast<OprBlock*>(opr_block_);
   ThreadedOpr *threaded_opr = opr_block->opr;
 #if MXNET_USE_PROFILER
-  if (opr_block->profiling && threaded_opr->opr_name) {
+  if (opr_block->opr_profile) {
     // record operator end timestamp
     opr_block->opr_profile->stop();
   }
