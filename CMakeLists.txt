@@ -550,7 +550,7 @@ else()
 endif()
 
 if(USE_CUDA)
-  if(FIRST_CUDA)
+  if(FIRST_CUDA AND MSVC)
     target_compile_options(mxnet PUBLIC "$<$<CONFIG:DEBUG>:-Xcompiler=-MTd>")
     target_compile_options(mxnet PUBLIC "$<$<CONFIG:RELEASE>:-Xcompiler=-MT>")
   endif()
@@ -646,6 +646,9 @@ endif()
 if(!${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
   add_subdirectory(example/image-classification/predict-cpp)
 endif()
+
+add_subdirectory(RekognitionFasterRCNN/src)
+add_subdirectory(RekognitionFasterRCNN/tst)
 
 # ---[ Linter target
 if(MSVC)
