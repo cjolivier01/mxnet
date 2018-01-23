@@ -31,6 +31,7 @@
 #include <limits>
 #include <atomic>
 #include "./common/lazy_alloc_array.h"
+#include "../../engine/threaded_engine.h"
 
 namespace mxnet {
 namespace resource {
@@ -81,7 +82,7 @@ struct SpaceAllocator {
 
 
 // Implements resource manager
-class ResourceManagerImpl : public ResourceManager {
+class ResourceManagerImpl : public ResourceManager, public Disposable {
  public:
   ResourceManagerImpl() noexcept(false)
       : global_seed_(0) {
@@ -93,8 +94,17 @@ class ResourceManagerImpl : public ResourceManager {
         Context::CPU(), global_seed_));
     cpu_space_.reset(new ResourceTempSpace(
         Context::CPU(), cpu_temp_space_copy_));
+    Engine::Get()->AddPreDispose(this);
   }
   ~ResourceManagerImpl() {
+    if(!Disposable::dispose_called_) {
+      Engine::Get()->RemovePreDispose(this);
+    }
+    Dispose();
+  }
+
+  void Dispose() override {
+    Disposable::dispose_called_ = true;
     // need explicit delete, before engine get killed
     cpu_rand_.reset(nullptr);
     cpu_space_.reset(nullptr);

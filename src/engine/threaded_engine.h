@@ -40,6 +40,7 @@
 #include "../common/object_pool.h"
 
 namespace mxnet {
+
 namespace engine {
 
 // Define helper macros for debug information.

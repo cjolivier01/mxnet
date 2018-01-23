@@ -32,6 +32,7 @@
 #include "../common/utils.h"
 
 namespace mxnet {
+
 namespace engine {
 /*!
  * \brief ThreadedEngine uses per device threads.
@@ -61,12 +62,16 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
         }));
     // GPU tasks will be created lazily
   }
-  ~ThreadedEnginePerDevice() noexcept(false) {
+  virtual void Dispose() override {
     SignalQueuesForKill();
+    Disposable::OnPreDispose();
     gpu_normal_workers_.Clear();
     gpu_copy_workers_.Clear();
     cpu_normal_workers_.Clear();
     cpu_priority_worker_.reset(nullptr);
+  }
+  ~ThreadedEnginePerDevice() noexcept(false) {
+    Dispose();
   }
 
  protected:

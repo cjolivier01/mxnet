@@ -35,6 +35,47 @@
 
 namespace mxnet {
 
+struct IDisposable {
+  virtual void Dispose() = 0;
+};
+
+class Disposable : public IDisposable {
+ public:
+  virtual ~Disposable() noexcept(false) {
+    Dispose();
+  }
+  void AddPreDispose(IDisposable *dispose) {
+    std::unique_lock<std::mutex> lk(m_);
+    pre_dispose_.insert(dispose);
+  }
+  void RemovePreDispose(IDisposable *dispose) {
+    std::unique_lock<std::mutex> lk(m_);
+    pre_dispose_.erase(dispose);
+  }
+  void OnPreDispose() {
+    //std::unique_lock<std::mutex> lk(m_);
+    for(IDisposable *dispose : pre_dispose_) {
+      dispose->Dispose();
+    }
+    pre_dispose_.clear();
+  }
+  virtual void OnDispose() {}
+  void Dispose() override {
+    if(!dispose_called_) {
+      dispose_called_ = true;
+      OnPreDispose();
+      OnDispose();
+    }
+  }
+
+ protected:
+  volatile bool dispose_called_ = false;
+
+ private:
+  std::mutex  m_;
+  std::set<IDisposable *> pre_dispose_;
+};
+
 // forward declare engine
 class Engine;
 
@@ -90,7 +131,7 @@ enum class FnProperty {
 /*!
  * \brief Dependency engine that schedules operations.
 */
-class MXNET_API Engine {
+class MXNET_API Engine : public Disposable {
  public:
   /*! \brief callback on complete*/
   typedef engine::CallbackOnComplete CallbackOnComplete;
