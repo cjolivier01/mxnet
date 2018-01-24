@@ -31,7 +31,7 @@
 #include <limits>
 #include <atomic>
 #include "./common/lazy_alloc_array.h"
-#include "../../engine/threaded_engine.h"
+#include "./engine/threaded_engine.h"
 
 namespace mxnet {
 namespace resource {
@@ -98,6 +98,8 @@ class ResourceManagerImpl : public ResourceManager, public Disposable {
   }
   ~ResourceManagerImpl() {
     if(!Disposable::dispose_called_) {
+      // If Dispose() wasn't yet called, then we assume
+      // that out parent isn't destroyed yet, and so it's safe to Dispose ourself
       Engine::Get()->RemovePreDispose(this);
     }
     Dispose();
