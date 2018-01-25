@@ -234,9 +234,18 @@ MXNET_DLL int MXSetProfilerState(int state);
 /*!
  * \brief Save profile and stop profiler
  * \param append true if appending to current profile file, false for truncate
- * \return
+ * \return 0 when success, -1 when failure happens.
  */
 MXNET_DLL int MXDumpProfile();
+
+
+/*!
+ * \brief Print aggregate stats to the console
+ * \param reset Clear the aggregate stats after printing
+ * \return 0 when success, -1 when failure happens.
+ * \note
+ */
+MXNET_DLL int MXDumpAggregateProfileStats(int reset);
 
 /*!
  * \brief Pause profiler tuning collection

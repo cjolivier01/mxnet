@@ -38,6 +38,8 @@ def profiler_set_config(flags):
           file_name : string, output file for profile data
           continuous_dump : boolean, whether to periodically dump profiling data to file
           dump_period : float, seconds between profile data dumps
+          aggregate_stats : boolean, whether to maintain aggregate stats in memory for console
+                            dump.  Has some negative performance impact.
     """
     check_call(_LIB.MXSetProfilerConfig(len(flags),
                                         c_str_array([key for key, _ in flags]),
@@ -62,12 +64,17 @@ def dump_profile():
     """
     check_call(_LIB.MXDumpProfile())
 
+def dump_aggregate_stats(reset=False):
+    """Dump profile aggregate stats to console.
+    """
+    do_reset = 1 if reset is True else 0
+    check_call(_LIB.MXDumpAggregateProfileStats(int(do_reset)))
+
 def profiler_pause():
     check_call(_LIB.MXProfilePause(int(1)))
 
 def profiler_resume():
     check_call(_LIB.MXProfilePause(int(0)))
-
 
 class Domain(object):
     """Profiling domain, used to group sub-objects like tasks, counters, etc into categories
