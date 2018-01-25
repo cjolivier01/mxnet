@@ -29,16 +29,19 @@
 #include <dmlc/thread_group.h>
 #include <vector>
 #include <string>
+#include <cstdint>
 #include <mutex>
 #include <memory>
 #include <array>
 #include "./vtune.h"
+#include "./profile_stats.h"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WINDOWS__)
 #include <windows.h>
 typedef uint32_t size_t;
 #else
 #include <unistd.h>
+#include <cstdint>
 #endif
 
 namespace mxnet {
@@ -174,6 +177,14 @@ struct ProfileStat {
    */
   virtual ~ProfileStat() {}
 
+  /*!
+   * \brief Save aggregate data for this stat
+   * \param data Stat data
+   */
+  virtual void SaveAggregate(ProfileStats::StatData& data) const {
+    data.type_ = ProfileStats::StatData::kOther;
+  }
+
  protected:
   /*!
    * \brief Override to emit extra items within the json event data block. Append with a comma ",".
@@ -265,7 +276,10 @@ class Profiler {
    * \param continuous_dump true if profile information should be periodically dumped
    * \param dump_period Period (in seconds) of profile info dumping
    */
-  void SetConfig(int mode, std::string output_filename, bool continuous_dump, float dump_period);
+  void SetConfig(int mode, std::string output_filename,
+                 bool continuous_dump,
+                 float dump_period,
+                 bool aggregate_stats);
 
   /*! \return mode of profiler */
   inline int GetMode() const {
@@ -309,6 +323,14 @@ class Profiler {
       set_extra_info_function(stat.get());
       AddProfileStat(&stat);
     }
+  }
+
+  /*!
+   * \brief Return aggregate statistic accumulator
+   * \return shared pointer to the 'ProfileStats' aggregate statistic accumulator
+   */
+  std::shared_ptr<ProfileStats> GetAggregateStats() const {
+    return profile_stats_;
   }
 
   /*! \return Profiler singleton */
@@ -426,6 +448,9 @@ class Profiler {
   volatile uint64_t profile_dump_count_;
   /*! \brief Whether profiling is paused */
   volatile bool paused_ = false;
+  /*! \brief Maintain in-memory aggregate stats for print output.
+   *  \warning This has a negative performance impact */
+  std::shared_ptr<ProfileStats> profile_stats_ = false;
   /*! \brief Asynchronous operation thread lifecycly control object */
   std::shared_ptr<dmlc::ThreadGroup> thread_group_ = std::make_shared<dmlc::ThreadGroup>();
   /* !\brief pids */
@@ -587,6 +612,22 @@ struct ProfileCounter : public ProfileObject {
       ProfileStat::EmitExtra(os, idx);
       *os << "        \"args\": { \"" << name_.c_str() << "\": " << value_ << " },\n";
     }
+
+    /*!
+     * \brief Save aggregate data for this stat
+     * \param data Stat data
+     */
+    void SaveAggregate(ProfileStats::StatData& data) const override {
+      data.type_ = ProfileStats::StatData::kCounter;
+      ++data.total_count_;
+      data.total_aggregate_ = value_;
+      if (value_ > data.max_aggregate_) {
+        data.max_aggregate_ = value_;
+      }
+      if (value_ < data.min_aggregate_) {
+        data.min_aggregate_ = value_;
+      }
+    }
   };
 
  private:
@@ -662,6 +703,24 @@ class ProfileDuration : public ProfileObject {
       items_[kStart].enabled_ = items_[kStop].enabled_ = true;
       items_[kStart].event_type_ = begin_event;
       items_[kStop].event_type_ = end_event;
+    }
+
+    /*!
+     * \brief Save aggregate data for this stat
+     * \param data Stat data
+     */
+    void SaveAggregate(ProfileStats::StatData& data) const override {
+      data.type_ = ProfileStats::StatData::kDuration;
+      ++data.total_count_;
+      CHECK_GE(items_[kStop].timestamp_, items_[kStart].timestamp_);
+      const uint64_t duration = items_[kStop].timestamp_ - items_[kStart].timestamp_;
+      data.total_aggregate_ += duration;
+      if (duration > data.max_aggregate_) {
+        data.max_aggregate_ = duration;
+      }
+      if (duration < data.min_aggregate_) {
+        data.min_aggregate_ = duration;
+      }
     }
   };
 };

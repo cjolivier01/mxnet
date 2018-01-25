@@ -45,7 +45,7 @@ static profiler::ProfileCounter api_concurrency_counter("MXNet C API Concurrency
 struct APICallTimingData {
   const char *name_;
   profiler::ProfileTask *task_;
-  profiler::ProfileEvent *event_;
+  //profiler::ProfileEvent *event_;
 };
 
 template<typename T, typename... Args>
@@ -115,25 +115,24 @@ extern void on_enter_api(const char *function) {
       ++api_call_counter;
       ++api_concurrency_counter;
       APICallTimingData data = {
-        function,
-        thread_profiling_data.profile_task(function, &api_domain),
-        thread_profiling_data.profile_event(function)
+        function
+        , thread_profiling_data.profile_task(function, &api_domain)
+        //, thread_profiling_data.profile_event(function)
       };
       thread_profiling_data.calls_.push(data);
       data.task_->start();
-      data.event_->start();
+      //data.event_->start();
     }
   }
 #endif  // MXNET_USE_PROFILER
 }
-
 extern void on_exit_api() {
 #if MXNET_USE_PROFILER
   if (profiler::Profiler::Get()->IsProfiling(profiler::Profiler::kAPI)) {
     if (!thread_profiling_data.ignore_call_) {
       CHECK(!thread_profiling_data.calls_.empty());
       APICallTimingData data = thread_profiling_data.calls_.top();
-      data.event_->stop();
+      //data.event_->stop();
       data.task_->stop();
       thread_profiling_data.calls_.pop();
       --api_concurrency_counter;
@@ -209,6 +208,7 @@ struct ProfileConfigParam : public dmlc::Parameter<ProfileConfigParam> {
   std::string file_name;
   bool continuous_dump;
   float dump_period;
+  bool aggregate_stats;
   DMLC_DECLARE_PARAMETER(ProfileConfigParam) {
     DMLC_DECLARE_FIELD(profile_all).set_default(false)
       .describe("Profile all.");
@@ -227,6 +227,9 @@ struct ProfileConfigParam : public dmlc::Parameter<ProfileConfigParam> {
     DMLC_DECLARE_FIELD(dump_period).set_default(1.0f)
       .describe("When continuous dump is enabled, the period between subsequent "
                   "profile info dumping.");
+    DMLC_DECLARE_FIELD(aggregate_stats).set_default(false)
+      .describe("Maintain aggregate stats, required for MXDumpAggregateStats.  Note that "
+      "this can have anegative performance impact.");
   }
 };
 
@@ -268,11 +271,27 @@ int MXSetProfilerConfig(int num_params, const char* const* keys, const char* con
     profiler::Profiler::Get()->SetConfig(profiler::Profiler::ProfilerMode(mode),
                                          std::string(param.file_name),
                                          param.continuous_dump,
-                                         param.dump_period);
+                                         param.dump_period,
+                                         param.aggregate_stats);
 #else
     warn_not_built_with_profiler_enabled();
 #endif
   API_END();
+}
+
+int MXDumpAggregateProfileStats(int reset) {
+  mxnet::IgnoreProfileCallScope ignore;
+  API_BEGIN();
+#if MXNET_USE_PROFILER
+    profiler::Profiler *profiler = profiler::Profiler::Get();
+    std::shared_ptr<profiler::ProfileStats> stats = profiler->GetAggregateStats();
+    if(stats) {
+      stats->Dump(reset != 0);
+    }
+#else
+    warn_not_built_with_profiler_enabled();
+#endif
+  API_END()
 }
 
 int MXDumpProfile() {
