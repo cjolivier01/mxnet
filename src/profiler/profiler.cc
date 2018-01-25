@@ -118,7 +118,8 @@ void Profiler::SetState(ProfilerState state) {
 void Profiler::SetConfig(int mode,
                          std::string output_filename,
                          bool continuous_dump,
-                         float dump_period) {
+                         float dump_period,
+                         bool aggregate_stats) {
   CHECK(!continuous_dump || dump_period > 0);
   std::lock_guard<std::recursive_mutex> lock{this->m_};
   this->mode_ = mode;
@@ -128,6 +129,14 @@ void Profiler::SetConfig(int mode,
     ::unlink(this->filename_.c_str());
   }
   SetContinuousProfileDump(continuous_dump, dump_period);
+  // Adjust whether storing aggregate stats as necessary
+  if(aggregate_stats) {
+    if(!profile_stats_) {
+      profile_stats_ = std::make_shared<ProfileStats>();
+    }
+  } else if(profile_stats_) {
+    profile_stats_.reset();
+  }
 }
 
 /*
@@ -195,6 +204,9 @@ void Profiler::DumpProfile(bool peform_cleanup) {
       file << std::endl;
       opr_stat->EmitEvents(&file);
       ++num_records_emitted_;
+      if(profile_stats_) {
+        profile_stats_->OnProfileStat(*_opr_stat);
+      }
     }
   }
 
@@ -225,6 +237,9 @@ void Profiler::DumpProfile(bool peform_cleanup) {
     file << std::endl;
     profile_stat->EmitEvents(&file);
     ++num_records_emitted_;
+    if(profile_stats_) {
+      profile_stats_->OnProfileStat(*profile_stat);
+    }
   }
 
   if (last_pass) {
