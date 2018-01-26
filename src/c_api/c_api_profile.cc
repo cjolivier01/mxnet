@@ -298,7 +298,7 @@ int MXDumpAggregateProfileStats(int reset) {
   API_BEGIN();
 #if MXNET_USE_PROFILER
     profiler::Profiler *profiler = profiler::Profiler::Get();
-    std::shared_ptr<profiler::ProfileStats> stats = profiler->GetAggregateStats();
+    std::shared_ptr<profiler::AggregateStats> stats = profiler->GetAggregateStats();
     if (stats) {
       stats->Dump(reset != 0);
     }

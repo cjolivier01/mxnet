@@ -17,8 +17,8 @@
  * under the License.
  */
 
-#ifndef MXNET_PROFILER_PROFILE_STATS_H_
-#define MXNET_PROFILER_PROFILE_STATS_H_
+#ifndef MXNET_PROFILER_AGGREGATE_STATS_H_
+#define MXNET_PROFILER_AGGREGATE_STATS_H_
 
 #include <string>
 #include <map>
@@ -31,7 +31,7 @@ namespace profiler {
 
 struct ProfileStat;
 
-class ProfileStats {
+class AggregateStats {
  public:
   struct StatData {
     /*!
@@ -70,4 +70,4 @@ class ProfileStats {
 
 }  // namespace profiler
 }  // namespace mxnet
-#endif  // MXNET_PROFILER_PROFILE_STATS_H_
+#endif  // MXNET_PROFILER_AGGREGATE_STATS_H_

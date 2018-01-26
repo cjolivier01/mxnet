@@ -131,11 +131,11 @@ void Profiler::SetConfig(int mode,
   SetContinuousProfileDump(continuous_dump, dump_period);
   // Adjust whether storing aggregate stats as necessary
   if (aggregate_stats) {
-    if (!profile_stats_) {
-      profile_stats_ = std::make_shared<ProfileStats>();
+    if (!aggregate_stats_) {
+      aggregate_stats_ = std::make_shared<AggregateStats>();
     }
-  } else if (profile_stats_) {
-    profile_stats_.reset();
+  } else if (aggregate_stats_) {
+    aggregate_stats_.reset();
   }
 }
 
@@ -204,8 +204,8 @@ void Profiler::DumpProfile(bool peform_cleanup) {
       file << std::endl;
       opr_stat->EmitEvents(&file);
       ++num_records_emitted_;
-      if (profile_stats_) {
-        profile_stats_->OnProfileStat(*_opr_stat);
+      if (aggregate_stats_) {
+        aggregate_stats_->OnProfileStat(*_opr_stat);
       }
     }
   }
@@ -237,8 +237,8 @@ void Profiler::DumpProfile(bool peform_cleanup) {
     file << std::endl;
     profile_stat->EmitEvents(&file);
     ++num_records_emitted_;
-    if (profile_stats_) {
-      profile_stats_->OnProfileStat(*profile_stat);
+    if (aggregate_stats_) {
+      aggregate_stats_->OnProfileStat(*profile_stat);
     }
   }
 
@@ -249,7 +249,10 @@ void Profiler::DumpProfile(bool peform_cleanup) {
     file << "}" << std::endl;
   }
   enable_output_ = continuous_dump_ && !last_pass;  // If we're appending, then continue.
-                                                   // Otherwise, profiling stops.
+                                                    // Otherwise, profiling stops.
+  if (last_pass && profile_stat) {
+    aggregate_stats_->Dump(true);
+  }
 }
 
 static constexpr char TIMER_THREAD_NAME[] = "DumpProfileTimer";
