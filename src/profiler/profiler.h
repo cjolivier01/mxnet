@@ -181,8 +181,10 @@ struct ProfileStat {
    * \brief Save aggregate data for this stat
    * \param data Stat data
    */
-  virtual void SaveAggregate(ProfileStats::StatData& data) const {
-    data.type_ = ProfileStats::StatData::kOther;
+  virtual void SaveAggregate(ProfileStats::StatData *data) const {
+    if (data) {
+      data->type_ = ProfileStats::StatData::kOther;
+    }
   }
 
  protected:
@@ -617,15 +619,17 @@ struct ProfileCounter : public ProfileObject {
      * \brief Save aggregate data for this stat
      * \param data Stat data
      */
-    void SaveAggregate(ProfileStats::StatData& data) const override {
-      data.type_ = ProfileStats::StatData::kCounter;
-      ++data.total_count_;
-      data.total_aggregate_ = value_;
-      if (value_ > data.max_aggregate_) {
-        data.max_aggregate_ = value_;
-      }
-      if (value_ < data.min_aggregate_) {
-        data.min_aggregate_ = value_;
+    void SaveAggregate(ProfileStats::StatData *data) const override {
+      if (data) {
+        data->type_ = ProfileStats::StatData::kCounter;
+        ++data->total_count_;
+        data->total_aggregate_ = value_;
+        if (value_ > data->max_aggregate_) {
+          data->max_aggregate_ = value_;
+        }
+        if (value_ < data->min_aggregate_) {
+          data->min_aggregate_ = value_;
+        }
       }
     }
   };
@@ -709,17 +713,19 @@ class ProfileDuration : public ProfileObject {
      * \brief Save aggregate data for this stat
      * \param data Stat data
      */
-    void SaveAggregate(ProfileStats::StatData& data) const override {
-      data.type_ = ProfileStats::StatData::kDuration;
-      ++data.total_count_;
-      CHECK_GE(items_[kStop].timestamp_, items_[kStart].timestamp_);
-      const uint64_t duration = items_[kStop].timestamp_ - items_[kStart].timestamp_;
-      data.total_aggregate_ += duration;
-      if (duration > data.max_aggregate_) {
-        data.max_aggregate_ = duration;
-      }
-      if (duration < data.min_aggregate_) {
-        data.min_aggregate_ = duration;
+    void SaveAggregate(ProfileStats::StatData *data) const override {
+      if (data) {
+        data->type_ = ProfileStats::StatData::kDuration;
+        ++data->total_count_;
+        CHECK_GE(items_[kStop].timestamp_, items_[kStart].timestamp_);
+        const uint64_t duration = items_[kStop].timestamp_ - items_[kStart].timestamp_;
+        data->total_aggregate_ += duration;
+        if (duration > data->max_aggregate_) {
+          data->max_aggregate_ = duration;
+        }
+        if (duration < data->min_aggregate_) {
+          data->min_aggregate_ = duration;
+        }
       }
     }
   };

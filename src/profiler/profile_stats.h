@@ -17,9 +17,11 @@
  * under the License.
  */
 
-#ifndef MXNET_PROFILER_PROFILER_STATS_H_
-#define MXNET_PROFILER_PROFILER_STATS_H_
+#ifndef MXNET_PROFILER_PROFILE_STATS_H_
+#define MXNET_PROFILER_PROFILE_STATS_H_
 
+#include <string>
+#include <map>
 #ifdef __GNUC__
 #include <stdint-gcc.h>
 #else
@@ -62,6 +64,7 @@ class ProfileStats {
    * \param clear Delete all of the current statistics after printing
    */
   void Dump(bool clear);
+
  private:
   /*! \brief Should rarely collide, so most locks should occur only in user-space (futex) */
   std::mutex m_;
@@ -71,4 +74,4 @@ class ProfileStats {
 
 }  // namespace profiler
 }  // namespace mxnet
-#endif  // MXNET_PROFILER_PROFILER_STATS_H_
+#endif  // MXNET_PROFILER_PROFILE_STATS_H_

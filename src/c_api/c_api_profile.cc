@@ -35,17 +35,21 @@
 
 namespace mxnet {
 
+//#define PROFILE_API_INCLUDE_AS_EVENT
+
 #if MXNET_USE_PROFILER
 static profiler::ProfileDomain api_domain("MXNET_C_API");
-static profiler::ProfileCounter api_call_counter("MXNet C API Call Count", &api_domain);
-static profiler::ProfileCounter api_concurrency_counter("MXNet C API Concurrency Count",
+static profiler::ProfileCounter api_call_counter("MXNet C API Calls", &api_domain);
+static profiler::ProfileCounter api_concurrency_counter("MXNet C API Concurrency",
                                                         &api_domain);
 
 /*! \brief Per-API-call timing data */
 struct APICallTimingData {
   const char *name_;
   profiler::ProfileTask *task_;
-  //profiler::ProfileEvent *event_;
+#ifdef PROFILE_API_INCLUDE_AS_EVENT
+  profiler::ProfileEvent *event_;
+#endif  // PROFILE_API_INCLUDE_AS_EVENT
 };
 
 template<typename T, typename... Args>
@@ -79,6 +83,7 @@ class ProfilingThreadData {
     return iter->second.get();
   }
 
+#ifdef PROFILE_API_INCLUDE_AS_EVENT
   /*!
    * \brief Retreive ProfileEvent object of the given name, or create if it doesn't exist
    * \param name Name of the event
@@ -92,6 +97,7 @@ class ProfilingThreadData {
     }
     return iter->second.get();
   }
+#endif  // PROFILE_API_INCLUDE_AS_EVENT
 
   /*! \brief nestable call stack */
   std::stack<APICallTimingData> calls_;
@@ -101,8 +107,10 @@ class ProfilingThreadData {
  private:
   /*! \brief tasks */
   std::unordered_map<std::string, std::unique_ptr<profiler::ProfileTask>> tasks_;
+#ifdef PROFILE_API_INCLUDE_AS_EVENT
   /*! \brief events */
   std::unordered_map<std::string, std::unique_ptr<profiler::ProfileEvent>> events_;
+#endif  // PROFILE_API_INCLUDE_AS_EVENT
 };
 
 static thread_local ProfilingThreadData thread_profiling_data;
@@ -117,11 +125,15 @@ extern void on_enter_api(const char *function) {
       APICallTimingData data = {
         function
         , thread_profiling_data.profile_task(function, &api_domain)
-        //, thread_profiling_data.profile_event(function)
+#ifdef PROFILE_API_INCLUDE_AS_EVENT
+        , thread_profiling_data.profile_event(function)
+#endif  // PROFILE_API_INCLUDE_AS_EVENT
       };
       thread_profiling_data.calls_.push(data);
       data.task_->start();
-      //data.event_->start();
+#ifdef PROFILE_API_INCLUDE_AS_EVENT
+      data.event_->start();
+#endif  // PROFILE_API_INCLUDE_AS_EVENT
     }
   }
 #endif  // MXNET_USE_PROFILER
@@ -132,7 +144,9 @@ extern void on_exit_api() {
     if (!thread_profiling_data.ignore_call_) {
       CHECK(!thread_profiling_data.calls_.empty());
       APICallTimingData data = thread_profiling_data.calls_.top();
-      //data.event_->stop();
+#ifdef PROFILE_API_INCLUDE_AS_EVENT
+      data.event_->stop();
+#endif  // PROFILE_API_INCLUDE_AS_EVENT
       data.task_->stop();
       thread_profiling_data.calls_.pop();
       --api_concurrency_counter;
@@ -285,7 +299,7 @@ int MXDumpAggregateProfileStats(int reset) {
 #if MXNET_USE_PROFILER
     profiler::Profiler *profiler = profiler::Profiler::Get();
     std::shared_ptr<profiler::ProfileStats> stats = profiler->GetAggregateStats();
-    if(stats) {
+    if (stats) {
       stats->Dump(reset != 0);
     }
 #else
