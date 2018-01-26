@@ -23,12 +23,12 @@ from __future__ import absolute_import
 import ctypes
 from .base import _LIB, check_call, c_str, ProfileHandle, c_str_array
 
-def profiler_set_config(flags):
+def profiler_set_config(kwargs):
     """Set up the configure of profiler.
 
     Parameters
     ----------
-    flags : list of key/value pair tuples
+    kwargs : list of key/value pair tuples
         Indicates configuration parameters
           profile_all : boolean, all profile types enabled
           profile_symbolic : boolean, whether to profile symbolic operators
@@ -41,9 +41,9 @@ def profiler_set_config(flags):
           aggregate_stats : boolean, whether to maintain aggregate stats in memory for console
                             dump.  Has some negative performance impact.
     """
-    check_call(_LIB.MXSetProfilerConfig(len(flags),
-                                        c_str_array([key for key, _ in flags]),
-                                        c_str_array([str(val) for _, val in flags])))
+    check_call(_LIB.MXSetProfilerConfig(len(kwargs),
+                                        c_str_array([key for key, _ in kwargs]),
+                                        c_str_array([str(val) for _, val in kwargs])))
 
 
 def profiler_set_state(state='stop'):
