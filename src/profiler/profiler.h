@@ -38,7 +38,6 @@
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WINDOWS__)
 #include <windows.h>
-typedef uint32_t size_t;
 #else
 #include <unistd.h>
 #include <cstdint>
@@ -452,7 +451,7 @@ class Profiler {
   volatile bool paused_ = false;
   /*! \brief Maintain in-memory aggregate stats for print output.
    *  \warning This has a negative performance impact */
-  std::shared_ptr<AggregateStats> aggregate_stats_ = false;
+  std::shared_ptr<AggregateStats> aggregate_stats_ = nullptr;
   /*! \brief Asynchronous operation thread lifecycly control object */
   std::shared_ptr<dmlc::ThreadGroup> thread_group_ = std::make_shared<dmlc::ThreadGroup>();
   /* !\brief pids */

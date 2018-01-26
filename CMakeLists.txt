@@ -8,7 +8,7 @@ include(cmake/Utils.cmake)
 
 #Some things have order. This must be put in front alone
 mxnet_option(USE_CUDA             "Build with CUDA support"   ON)
-mxnet_option(USE_OLDCMAKECUDA     "Build with old cmake cuda" OFF)
+mxnet_option(USE_OLDCMAKECUDA     "Build with old cmake cuda" ON IF MSVC)
 mxnet_option(USE_OPENCV           "Build with OpenCV support" ON)
 mxnet_option(USE_OPENMP           "Build with Openmp support" ON)
 mxnet_option(USE_CUDNN            "Build with cudnn support"  ON) # one could set CUDNN_ROOT for search path
@@ -64,7 +64,7 @@ if(MSVC)
   add_definitions(-DMXNET_EXPORTS)
   add_definitions(-DNNVM_EXPORTS)
   add_definitions(-DDMLC_STRICT_CXX11)
-  add_definitions(-DNOMINMAX=1)
+  add_definitions(-DNOMINMAX)
   set(CMAKE_C_FLAGS "/MP")
   set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} /bigobj")
 else(MSVC)
