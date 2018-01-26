@@ -35,7 +35,7 @@
 
 namespace mxnet {
 
-//#define PROFILE_API_INCLUDE_AS_EVENT
+// #define PROFILE_API_INCLUDE_AS_EVENT
 
 #if MXNET_USE_PROFILER
 static profiler::ProfileDomain api_domain("MXNET_C_API");
