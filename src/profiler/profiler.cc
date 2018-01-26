@@ -250,7 +250,7 @@ void Profiler::DumpProfile(bool peform_cleanup) {
   }
   enable_output_ = continuous_dump_ && !last_pass;  // If we're appending, then continue.
                                                     // Otherwise, profiling stops.
-  if (last_pass && profile_stat) {
+  if (last_pass && aggregate_stats_) {
     aggregate_stats_->Dump(true);
   }
 }

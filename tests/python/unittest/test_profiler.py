@@ -30,10 +30,10 @@ def enable_profiler(run=True, continuous_dump=False):
               ('profile_api', True),
               ('file_name', profile_filename),
               ('continuous_dump', continuous_dump)]
-    profiler.profiler_set_config(kwargs)
+    profiler.set_config(kwargs)
     print('profile file save to {0}'.format(profile_filename))
     if run is True:
-      profiler.profiler_set_state('run')
+      profiler.set_state('run')
 
 
 def test_profiler():
@@ -60,10 +60,10 @@ def test_profiler():
         print("Iteration {}/{}".format(i + 1, iter_num))
         if i == begin_profiling_iter:
             t0 = time.clock()
-            profiler.profiler_set_state('run')
+            profiler.set_state('run')
         if i == end_profiling_iter:
             t1 = time.clock()
-            profiler.profiler_set_state('stop')
+            profiler.set_state('stop')
         executor.forward()
         c = executor.outputs[0]
         c.wait_to_read()
@@ -71,7 +71,7 @@ def test_profiler():
     duration = t1 - t0
     print('duration: {0}s'.format(duration))
     print('          {0}ms/operator'.format(duration*1000/iter_num))
-    profiler.dump_profile()
+    profiler.dump()
 
 
 def test_profile_create_domain():
@@ -157,13 +157,13 @@ def test_profile_event(do_enable_profiler=True):
 
 def test_profile_tune_pause_resume():
     enable_profiler()
-    profiler.profiler_pause()
+    profiler.pause()
     # "test_profile_task" should *not* show up in tuning analysis
     test_profile_task()
-    profiler.profiler_resume()
+    profiler.resume()
     # "test_profile_event" should show up in tuning analysis
     test_profile_event()
-    profiler.profiler_pause()
+    profiler.pause()
 
 
 def test_profile_counter(do_enable_profiler=True):
