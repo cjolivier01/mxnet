@@ -34,7 +34,7 @@
 #include <memory>
 #include <array>
 #include "./vtune.h"
-#include "./profile_stats.h"
+#include "./aggregate_stats.h"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WINDOWS__)
 #include <windows.h>
@@ -181,9 +181,9 @@ struct ProfileStat {
    * \brief Save aggregate data for this stat
    * \param data Stat data
    */
-  virtual void SaveAggregate(ProfileStats::StatData *data) const {
+  virtual void SaveAggregate(AggregateStats::StatData *data) const {
     if (data) {
-      data->type_ = ProfileStats::StatData::kOther;
+      data->type_ = AggregateStats::StatData::kOther;
     }
   }
 
@@ -331,8 +331,8 @@ class Profiler {
    * \brief Return aggregate statistic accumulator
    * \return shared pointer to the 'ProfileStats' aggregate statistic accumulator
    */
-  std::shared_ptr<ProfileStats> GetAggregateStats() const {
-    return profile_stats_;
+  std::shared_ptr<AggregateStats> GetAggregateStats() const {
+    return aggregate_stats_;
   }
 
   /*! \return Profiler singleton */
@@ -452,7 +452,7 @@ class Profiler {
   volatile bool paused_ = false;
   /*! \brief Maintain in-memory aggregate stats for print output.
    *  \warning This has a negative performance impact */
-  std::shared_ptr<ProfileStats> profile_stats_ = false;
+  std::shared_ptr<AggregateStats> aggregate_stats_ = false;
   /*! \brief Asynchronous operation thread lifecycly control object */
   std::shared_ptr<dmlc::ThreadGroup> thread_group_ = std::make_shared<dmlc::ThreadGroup>();
   /* !\brief pids */
@@ -619,9 +619,9 @@ struct ProfileCounter : public ProfileObject {
      * \brief Save aggregate data for this stat
      * \param data Stat data
      */
-    void SaveAggregate(ProfileStats::StatData *data) const override {
+    void SaveAggregate(AggregateStats::StatData *data) const override {
       if (data) {
-        data->type_ = ProfileStats::StatData::kCounter;
+        data->type_ = AggregateStats::StatData::kCounter;
         ++data->total_count_;
         data->total_aggregate_ = value_;
         if (value_ > data->max_aggregate_) {
@@ -713,9 +713,9 @@ class ProfileDuration : public ProfileObject {
      * \brief Save aggregate data for this stat
      * \param data Stat data
      */
-    void SaveAggregate(ProfileStats::StatData *data) const override {
+    void SaveAggregate(AggregateStats::StatData *data) const override {
       if (data) {
-        data->type_ = ProfileStats::StatData::kDuration;
+        data->type_ = AggregateStats::StatData::kDuration;
         ++data->total_count_;
         CHECK_GE(items_[kStop].timestamp_, items_[kStart].timestamp_);
         const uint64_t duration = items_[kStop].timestamp_ - items_[kStart].timestamp_;

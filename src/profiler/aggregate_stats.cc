@@ -38,12 +38,12 @@ inline float MicroToMilli(const DType micro) {
   return static_cast<float>(static_cast<double>(micro) / 1000);
 }
 
-void ProfileStats::OnProfileStat(const ProfileStat& stat) {
+void AggregateStats::OnProfileStat(const ProfileStat& stat) {
   std::unique_lock<std::mutex> lk(m_);
   stat.SaveAggregate(&stats_[stat.categories_.c_str()][stat.name_.c_str()]);
 }
 
-void ProfileStats::Dump(bool clear) {
+void AggregateStats::Dump(bool clear) {
   std::ios state(nullptr);
   state.copyfmt(std::cout);
   std::cout << std::endl
