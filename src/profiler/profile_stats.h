@@ -22,11 +22,7 @@
 
 #include <string>
 #include <map>
-#ifdef __GNUC__
-#include <stdint-gcc.h>
-#else
 #include <cstdint>
-#endif
 #include <mutex>
 #include "./profiler.h"
 
