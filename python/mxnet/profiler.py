@@ -23,7 +23,7 @@ from __future__ import absolute_import
 import ctypes
 from .base import _LIB, check_call, c_str, ProfileHandle, c_str_array
 
-def profiler_set_config(kwargs):
+def set_config(kwargs):
     """Set up the configure of profiler.
 
     Parameters
@@ -35,8 +35,8 @@ def profiler_set_config(kwargs):
           profile_imperative : boolean, whether to profile imperative operators
           profile_memory : boolean, whether to profile memory usage
           profile_api : boolean, whether to profile the C API
-          file_name : string, output file for profile data
-          continuous_dump : boolean, whether to periodically dump profiling data to file
+          filename : string, output file for profile data
+          contiguous_dump : boolean, whether to periodically dump profiling data to file
           dump_period : float, seconds between profile data dumps
           aggregate_stats : boolean, whether to maintain aggregate stats in memory for console
                             dump.  Has some negative performance impact.
@@ -46,7 +46,7 @@ def profiler_set_config(kwargs):
                                         c_str_array([str(val) for _, val in kwargs])))
 
 
-def profiler_set_state(state='stop'):
+def set_state(state='stop'):
     """Set up the profiler state to 'run' or 'stop'.
 
     Parameters
@@ -58,7 +58,7 @@ def profiler_set_state(state='stop'):
     state2int = {'stop': 0, 'run': 1}
     check_call(_LIB.MXSetProfilerState(ctypes.c_int(state2int[state])))
 
-def dump_profile():
+def dump():
     """Dump profile and stop profiler. Use this to save profile
     in advance in case your program cannot exit normally.
     """
@@ -70,10 +70,10 @@ def dump_aggregate_stats(reset=False):
     do_reset = 1 if reset is True else 0
     check_call(_LIB.MXDumpAggregateProfileStats(int(do_reset)))
 
-def profiler_pause():
+def pause():
     check_call(_LIB.MXProfilePause(int(1)))
 
-def profiler_resume():
+def resume():
     check_call(_LIB.MXProfilePause(int(0)))
 
 class Domain(object):
@@ -281,30 +281,30 @@ class Counter(object):
         """
         check_call(_LIB.MXProfileSetCounter(self.handle, int(value)))
 
-    def increment(self, value_change):
+    def increment(self, delta=1):
         """Increment counter value.
             Parameters
             ----------
             value_change : int
                 Amount by which to add to the counter
         """
-        check_call(_LIB.MXProfileAdjustCounter(self.handle, int(value_change)))
+        check_call(_LIB.MXProfileAdjustCounter(self.handle, int(delta)))
 
-    def decrement(self, value_change):
+    def decrement(self, delta=1):
         """Decrement counter value.
             Parameters
             ----------
             value_change : int
                 Amount by which to subtract from the counter
         """
-        check_call(_LIB.MXProfileAdjustCounter(self.handle, -int(value_change)))
+        check_call(_LIB.MXProfileAdjustCounter(self.handle, -int(delta)))
 
-    def __iadd__(self, value_change):
-        self.increment(value_change)
+    def __iadd__(self, delta):
+        self.increment(delta)
         return self
 
-    def __isub__(self, value_change):
-        self.decrement(value_change)
+    def __isub__(self, delta):
+        self.decrement(delta)
         return self
 
     def __str__(self):
