@@ -40,7 +40,7 @@ inline float MicroToMilli(const DType micro) {
 
 void ProfileStats::OnProfileStat(const ProfileStat& stat) {
   std::unique_lock<std::mutex> lk(m_);
-  stat.SaveAggregate(stats_[stat.categories_.c_str()][stat.name_.c_str()]);
+  stat.SaveAggregate(&stats_[stat.categories_.c_str()][stat.name_.c_str()]);
 }
 
 void ProfileStats::Dump(bool clear) {
@@ -89,7 +89,7 @@ void ProfileStats::Dump(bool clear) {
                 << std::endl;
       for (auto iter = mm.begin(), e_iter = mm.end(); iter != e_iter; ++iter) {
         const StatData &data = iter->second;
-        if(data.type_ == StatData::kDuration || data.type_ == StatData::kCounter) {
+        if (data.type_ == StatData::kDuration || data.type_ == StatData::kCounter) {
           const std::string &name = iter->first;
           std::cout << std::setw(25) << std::left << name
                     << std::setw(16) << std::right << data.total_count_;
@@ -109,7 +109,8 @@ void ProfileStats::Dump(bool clear) {
           } else {
             std::cout << " "
                       << std::fixed << std::setw(16) << std::setprecision(4) << std::right
-                      << (MicroToMilli(double(data.total_aggregate_) / data.total_count_));
+                      << (MicroToMilli(static_cast<double>(data.total_aggregate_)
+                                       / data.total_count_));
           }
           std::cout << std::endl;
         }
@@ -119,7 +120,7 @@ void ProfileStats::Dump(bool clear) {
   }
   std::cout << std::flush;
   std::cout.copyfmt(state);
-  if(clear) {
+  if (clear) {
     stats_.clear();
   }
 }
