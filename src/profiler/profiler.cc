@@ -130,11 +130,11 @@ void Profiler::SetConfig(int mode,
   }
   SetContinuousProfileDump(continuous_dump, dump_period);
   // Adjust whether storing aggregate stats as necessary
-  if(aggregate_stats) {
-    if(!profile_stats_) {
+  if (aggregate_stats) {
+    if (!profile_stats_) {
       profile_stats_ = std::make_shared<ProfileStats>();
     }
-  } else if(profile_stats_) {
+  } else if (profile_stats_) {
     profile_stats_.reset();
   }
 }
@@ -204,7 +204,7 @@ void Profiler::DumpProfile(bool peform_cleanup) {
       file << std::endl;
       opr_stat->EmitEvents(&file);
       ++num_records_emitted_;
-      if(profile_stats_) {
+      if (profile_stats_) {
         profile_stats_->OnProfileStat(*_opr_stat);
       }
     }
@@ -237,7 +237,7 @@ void Profiler::DumpProfile(bool peform_cleanup) {
     file << std::endl;
     profile_stat->EmitEvents(&file);
     ++num_records_emitted_;
-    if(profile_stats_) {
+    if (profile_stats_) {
       profile_stats_->OnProfileStat(*profile_stat);
     }
   }
