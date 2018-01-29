@@ -325,8 +325,13 @@ class ThreadedEngine : public Engine {
     ThreadedOpr* threaded_opr = opr_block->opr;
 #if MXNET_USE_PROFILER
     if (opr_block->profiling && threaded_opr->opr_name) {
+      std::unique_ptr<profiler::ProfileOperator::Attributes> attrs;
+      if(profiler::Profiler::Get()->AggregateEnabled()) {
+        attrs.reset(new profiler::ProfileOperator::Attributes());
+      }
       const Context& ctx = opr_block->ctx;
-      opr_block->opr_profile.reset(new profiler::ProfileOperator(threaded_opr->opr_name));
+      opr_block->opr_profile.reset(new profiler::ProfileOperator(threaded_opr->opr_name,
+                                                                 attrs.release()));
       opr_block->opr_profile->start(ctx.dev_type, ctx.dev_id);
     }
 #endif

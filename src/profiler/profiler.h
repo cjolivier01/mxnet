@@ -77,7 +77,7 @@ struct static_string {
   std::array<char, string_size> string_;
 };
 
-using profile_stat_string = static_string<64>;
+using profile_stat_string = static_string<128>;
 
 /*!
  * \brief Base profile statistic structure
@@ -376,6 +376,14 @@ class Profiler {
    * \return Character pointer to device name
    */
   const char *DeviceName(const size_t index);
+
+  /*!
+   * \brief Whether aggregate stats are being collected
+   * \return true if aggregate stats are being collected
+   */
+  inline bool AggregateEnabled() const {
+    return aggregate_stats_.get() != nullptr;
+  }
 
  protected:
   /*! \brief make constructor protected. */
@@ -1053,13 +1061,51 @@ struct ProfileMarker {
  */
 struct ProfileOperator : public ProfileEvent {
   /*!
+   * \brief Operator attributes
+   */
+  struct Attributes {
+    std::vector<nnvm::TShape> inputs_;
+    std::vector<nnvm::TShape> outputs_;
+    std::unordered_map<std::string, std::string> attr_;
+    std::string to_string() const {
+      std::stringstream ss;
+      if(!inputs_.empty()) {
+        ss << "in: [";
+        for(size_t i = 0, n = inputs_.size(); i < n; ++i) {
+          if(i) {
+            ss << ",";
+          }
+          ss << inputs_[i];
+        }
+        ss << "]";
+      }
+      if(!outputs_.empty()) {
+        ss << "out: [";
+        for(size_t i = 0, n = outputs_.size(); i < n; ++i) {
+          if(i) {
+            ss << ",";
+          }
+          ss << outputs_[i];
+        }
+        ss << "]";
+      }
+      if(!attr_.empty()) {
+        for (const auto &tt : attr_) {
+          ss << " (" << tt.first << "=" << tt.second << ")";
+        }
+      }
+    }
+  };
+
+  /*!
    * \brief Constructor
    * \param name Name of the operator
    */
-  explicit inline ProfileOperator(const char *name)
+  explicit inline ProfileOperator(const char *name, Attributes *attributes)
     : ProfileEvent(name)
       , as_task_(name, &domain_)
-      , name_(name) {
+      , name_(name)
+      , attributes_(attributes) {
     SetCategories(domain_.name());
   }
   /*!
@@ -1094,11 +1140,15 @@ struct ProfileOperator : public ProfileEvent {
      * \param stop_time Time when operator completes
      */
     inline OprExecStat(const char *name, mxnet::Context::DeviceType dev_type, uint32_t dev_id,
-                       uint64_t start_time, uint64_t stop_time)
+                       uint64_t start_time, uint64_t stop_time,
+                       const Attributes *attributes)
       : DurationStat(ProfileStat::kDurationBegin, ProfileStat::kDurationEnd)
         , dev_type_(dev_type)
         , dev_id_(dev_id) {
       name_.set(name);
+      if(attributes) {
+        name_.append(attributes->to_string().c_str());
+      }
       categories_.set("operator");
       items_[kStart].timestamp_ = start_time;
       items_[kStop].timestamp_ = stop_time;
@@ -1114,8 +1164,12 @@ struct ProfileOperator : public ProfileEvent {
    * \brief Send this object's statistical datapoint to the profiler
    */
   void SendStat() override {
-    Profiler::Get()->AddNewProfileStat<OprExecStat>([this](OprExecStat *stat) {
-    }, name_.c_str(), dev_type_, dev_id_, start_time_, ProfileStat::NowInMicrosec());
+    Profiler::Get()->AddNewProfileStat<OprExecStat>(
+      [this](OprExecStat *stat) {
+
+      }, name_.c_str(), dev_type_, dev_id_,
+      start_time_, ProfileStat::NowInMicrosec(),
+      attributes_.get());
   }
   /*! \brief Also log the operator as a task in the operator domain */
   ProfileTask as_task_;
@@ -1127,6 +1181,8 @@ struct ProfileOperator : public ProfileEvent {
   uint32_t dev_id_;
   /*! \brief Operator domain */
   static ProfileDomain domain_;
+  /*! \brief Optional operator attributes */
+  std::unique_ptr<Attributes> attributes_;
 };
 
 /*
