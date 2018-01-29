@@ -95,7 +95,11 @@ class NaiveEngine final : public Engine {
     this->PushAsync([&](RunContext ctx, CallbackOnComplete on_complete) {
 #if MXNET_USE_PROFILER
         if (opr->profiling) {
-          opr->opr_profile.reset(new profiler::ProfileOperator(opr->opr_name));
+          std::unique_ptr<profiler::ProfileOperator::Attributes> attrs;
+          if(profiler->AggregateEnabled()) {
+            attrs.reset(new profiler::ProfileOperator::Attributes());
+          }
+          opr->opr_profile.reset(new profiler::ProfileOperator(opr->opr_name, attrs.release()));
           opr->opr_profile->start(exec_ctx.dev_type, exec_ctx.dev_id);
         }
         opr->fn(ctx, on_complete);
@@ -132,7 +136,11 @@ class NaiveEngine final : public Engine {
       opr = NewOperator(exec_fun, const_vars, mutable_vars,
                         prop, opr_name)->Cast<NaiveOpr>();
       opr->profiling = profiling;
-      opr->opr_profile.reset(new profiler::ProfileOperator(opr->opr_name));
+      std::unique_ptr<profiler::ProfileOperator::Attributes> attrs;
+      if(profiler->AggregateEnabled()) {
+        attrs.reset(new profiler::ProfileOperator::Attributes());
+      }
+      opr->opr_profile.reset(new profiler::ProfileOperator(opr->opr_name, attrs.release()));
       opr->opr_profile->start(exec_ctx.dev_type, exec_ctx.dev_id);
     }
 #endif
