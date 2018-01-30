@@ -278,6 +278,11 @@ void ThreadedEngine::DeleteOperator(OprHandle op) {
 void ThreadedEngine::Push(OprHandle op, Context exec_ctx, int priority, bool profiling) {
   ThreadedOpr* threaded_opr = ThreadedOpr::CastFromBase(op);
   OprBlock* opr_block = OprBlock::New();
+#ifdef DEBUG_ENGINE_PUSH
+  if(opr_block && opr_block->opr && opr_block->opr->opr_name) {
+    std::cout << "ThreadedEngine::Push( " << opr_block->opr->opr_name << " )" << std::endl;
+  }
+#endif  // DEBUG_ENGINE_PUSH
   opr_block->opr = threaded_opr;
 
   opr_block->wait.store(static_cast<int>(
@@ -306,6 +311,11 @@ void ThreadedEngine::PushAsync(AsyncFn fn, Context exec_ctx,
                                FnProperty prop,
                                int priority,
                                const char* opr_name) {
+#ifdef DEBUG_ENGINE_PUSH
+  if(opr_name) {
+    std::cout << "ThreadedEngine::PushAsync( " << opr_name << " )" << std::endl;
+  }
+#endif  // DEBUG_ENGINE_PUSH
   BulkFlush();
   ThreadedOpr *opr = NewOperator(std::move(fn), const_vars, mutable_vars, prop, opr_name);
   opr->temporary = true;
@@ -323,6 +333,11 @@ void ThreadedEngine::PushSync(SyncFn exec_fn, Context exec_ctx,
                               FnProperty prop,
                               int priority,
                               const char* opr_name) {
+#ifdef DEBUG_ENGINE_PUSH
+  if(opr_name) {
+    std::cout << "ThreadedEngine::PushSync( " << opr_name << " )" << std::endl;
+  }
+#endif  // DEBUG_ENGINE_PUSH
   BulkStatus& bulk_status = *BulkStatusStore::Get();
   if (!bulk_status.bulk_size || prop != FnProperty::kNormal || priority) {
     this->PushAsync([exec_fn](RunContext ctx, CallbackOnComplete on_complete) {

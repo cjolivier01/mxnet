@@ -43,6 +43,8 @@ void AggregateStats::OnProfileStat(const ProfileStat& stat) {
   stat.SaveAggregate(&stats_[stat.categories_.c_str()][stat.name_.c_str()]);
 }
 
+static constexpr size_t NAME_WIDTH = 64;
+
 void AggregateStats::Dump(bool clear) {
   std::ios state(nullptr);
   state.copyfmt(std::cout);
@@ -57,7 +59,7 @@ void AggregateStats::Dump(bool clear) {
     const std::unordered_map<std::string, StatData>& mm = type_iter->second;
     if (!mm.empty()) {
       std::cout << type << std::endl << "=================" << std::endl;
-      std::cout << std::setw(25) << std::left  << "Name"
+      std::cout << std::setw(NAME_WIDTH) << std::left  << "Name"
                 << std::setw(16) << std::right << "Total Count"
                 << " "
                 << std::setw(16) << std::right
@@ -91,7 +93,7 @@ void AggregateStats::Dump(bool clear) {
         const StatData &data = iter->second;
         if (data.type_ == StatData::kDuration || data.type_ == StatData::kCounter) {
           const std::string &name = iter->first;
-          std::cout << std::setw(25) << std::left << name
+          std::cout << std::setw(NAME_WIDTH) << std::left << name
                     << std::setw(16) << std::right << data.total_count_;
           std::cout << " "
                     << std::fixed << std::setw(16) << std::setprecision(4) << std::right

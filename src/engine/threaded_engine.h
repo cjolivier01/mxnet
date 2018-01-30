@@ -39,7 +39,7 @@
 #include <string>
 #include <thread>
 #include "./engine_impl.h"
-#include "../profiler/profiler.h"
+#include "../profiler/profile_operator.h"
 #include "./openmp.h"
 #include "../common/object_pool.h"
 

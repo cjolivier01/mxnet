@@ -34,6 +34,8 @@
 #include <vector>
 #include "./base.h"
 
+//#define DEBUG_ENGINE_PUSH
+
 namespace mxnet {
 
 // forward declare engine

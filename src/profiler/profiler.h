@@ -27,6 +27,7 @@
 
 #include <dmlc/concurrentqueue.h>
 #include <dmlc/thread_group.h>
+#include <mxnet/base.h>
 #include <vector>
 #include <string>
 #include <cstdint>
@@ -154,11 +155,19 @@ struct ProfileStat {
   }
 
   /*!
+   * \brief Perform pre-emit tasks which you want to keep oput of the profiling pipeline
+   * \note This occurs in the dump thread and not in-line with the code being profiled, so it's
+   *       a good place to do any expensive operations needed before emitting the stat
+   */
+  virtual void OnBeforeEmitEvents() {}
+
+  /*!
    * \brief Print event statistics in json format to the supplied output stream
    * \param os Output stream to write the data
    * \note Emits all sub-even statistics
    */
   void EmitEvents(std::ostream *os) {
+    OnBeforeEmitEvents();
     size_t count = 0;
     for (size_t i = 0; i < sizeof(items_) / sizeof(items_[0]); ++i) {
       if (items_[i].enabled_) {
@@ -1055,134 +1064,6 @@ struct ProfileMarker {
   VTUNE_ONLY_CODE(std::unique_ptr<vtune::VTuneInstantMarker> vtune_instant_marker_);
 };
 
-/*!
- * \brief Operator profiler object. Logs as both an independent event and a task in
- * the operator domain
- */
-struct ProfileOperator : public ProfileEvent {
-  /*!
-   * \brief Operator attributes
-   */
-  struct Attributes {
-    std::vector<nnvm::TShape> inputs_;
-    std::vector<nnvm::TShape> outputs_;
-    std::unordered_map<std::string, std::string> attr_;
-    std::string to_string() const {
-      std::stringstream ss;
-      if (!inputs_.empty()) {
-        ss << "in: [";
-        for (size_t i = 0, n = inputs_.size(); i < n; ++i) {
-          if (i) {
-            ss << ",";
-          }
-          ss << inputs_[i];
-        }
-        ss << "]";
-      }
-      if (!outputs_.empty()) {
-        ss << "out: [";
-        for (size_t i = 0, n = outputs_.size(); i < n; ++i) {
-          if (i) {
-            ss << ",";
-          }
-          ss << outputs_[i];
-        }
-        ss << "]";
-      }
-      if (!attr_.empty()) {
-        for (const auto &tt : attr_) {
-          ss << " (" << tt.first << "=" << tt.second << ")";
-        }
-      }
-    }
-  };
-
-  /*!
-   * \brief Constructor
-   * \param name Name of the operator
-   */
-  explicit inline ProfileOperator(const char *name, Attributes *attributes)
-    : ProfileEvent(name)
-      , as_task_(name, &domain_)
-      , name_(name)
-      , attributes_(attributes) {
-    SetCategories(domain_.name());
-  }
-  /*!
-   * \brief Start the profiling scope
-   * \param dev_type Device type that the profiling will occur on
-   * \param dev_id Device id associated with this opr
-   */
-  void start(mxnet::Context::DeviceType dev_type, uint32_t dev_id) {
-    dev_type_ = dev_type;
-    dev_id_ = dev_id;
-    ProfileEvent::start();
-    as_task_.start();
-  }
-  /*!
-   * \brief Stop the profiling scope
-   */
-  void stop() override {
-    as_task_.stop();
-    ProfileEvent::stop();
-  }
-
-  /*!
-   * \brief Operation execution statistics
-   */
-  struct OprExecStat : public DurationStat {
-    /*!
-     * \brief Constructor
-     * \param name Name of the operator
-     * \param dev_type Device type (i.e. CPU: 1, GPU: 2, CPUPinned: 3)
-     * \param dev_id Device ID (ie GPU number)
-     * \param start_time Time when operator starts
-     * \param stop_time Time when operator completes
-     */
-    inline OprExecStat(const char *name, mxnet::Context::DeviceType dev_type, uint32_t dev_id,
-                       uint64_t start_time, uint64_t stop_time,
-                       const Attributes *attributes)
-      : DurationStat(ProfileStat::kDurationBegin, ProfileStat::kDurationEnd)
-        , dev_type_(dev_type)
-        , dev_id_(dev_id) {
-      name_.set(name);
-      if (attributes) {
-        name_.append(attributes->to_string().c_str());
-      }
-      categories_.set("operator");
-      items_[kStart].timestamp_ = start_time;
-      items_[kStop].timestamp_ = stop_time;
-    }
-    /*! \brief device type: CPU: 1, GPU: 2, CPUPinned: 3 */
-    mxnet::Context::DeviceType dev_type_;
-    /*! \brief device id */
-    uint32_t dev_id_;
-  };
-
- private:
-  /*!
-   * \brief Send this object's statistical datapoint to the profiler
-   */
-  void SendStat() override {
-    Profiler::Get()->AddNewProfileStat<OprExecStat>(
-      [this](OprExecStat *stat) {}, name_.c_str(), dev_type_, dev_id_,
-      start_time_, ProfileStat::NowInMicrosec(),
-      attributes_.get());
-  }
-  /*! \brief Also log the operator as a task in the operator domain */
-  ProfileTask as_task_;
-  /* !\brief Operator name */
-  profile_stat_string name_;
-  /*! \brief device type: CPU: 1, GPU: 2, CPUPinned: 3 */
-  Context::DeviceType dev_type_;
-  /*! \brief device id */
-  uint32_t dev_id_;
-  /*! \brief Operator domain */
-  static ProfileDomain domain_;
-  /*! \brief Optional operator attributes */
-  std::unique_ptr<Attributes> attributes_;
-};
-
 /*
  * Profiler inline functions
  */
@@ -1208,19 +1089,6 @@ inline size_t Profiler::DeviceIndex(mxnet::Context::DeviceType dev_type, int32_t
       LOG(FATAL) << "Unknown dev_type: " << dev_type;
       return 0;
   }
-}
-
-/*!
- * \brief Explicit 'Profiler::AddProfileStat' override for 'OprExecStat'
- * \param opr_stat Unique pointert to the operator statistic
- */
-template<>
-inline void Profiler::AddProfileStat<ProfileOperator::OprExecStat>(
-  std::unique_ptr<ProfileOperator::OprExecStat> *opr_stat) {
-  const size_t idx = DeviceIndex((*opr_stat)->dev_type_, (*opr_stat)->dev_id_);
-  CHECK_LT(idx, DeviceCount());
-  DeviceStats& dev_stat = profile_stat[idx];
-  dev_stat.opr_exec_stats_->enqueue((*opr_stat).release());
 }
 
 #undef VTUNE_ONLY_CODE  // This macro not meant to be used outside of this file

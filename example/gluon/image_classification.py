@@ -27,6 +27,7 @@ from mxnet.gluon import nn
 from mxnet.gluon.model_zoo import vision as models
 from mxnet import autograd as ag
 from mxnet.test_utils import get_mnist_iterator
+from mxnet import profiler
 
 from data import *
 
@@ -142,12 +143,20 @@ def train(epochs, ctx):
     metric = mx.metric.Accuracy()
     loss = gluon.loss.SoftmaxCrossEntropyLoss()
 
+    net.hybridize()
+    loss.hybridize()
+
+    #view_net(loss)
+
     for epoch in range(epochs):
         tic = time.time()
         train_data.reset()
         metric.reset()
         btic = time.time()
+        batch_time = 0
+        start_epoch = time.time()
         for i, batch in enumerate(train_data):
+            batch_start = time.time()
             data = gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0)
             label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0)
             outputs = []
@@ -169,7 +178,10 @@ def train(epochs, ctx):
                 logging.info('Epoch[%d] Batch [%d]\tSpeed: %f samples/sec\t%s=%f'%(
                                epoch, i, batch_size/(time.time()-btic), name, acc))
             btic = time.time()
+            batch_time += time.time() - batch_start
 
+        end_epoch = time.time()
+        logging.info('Non-batch epoch time (enum time): %f'%((end_epoch - start_epoch) - batch_time))
         name, acc = metric.get()
         logging.info('[Epoch %d] training: %s=%f'%(epoch, name, acc))
         logging.info('[Epoch %d] time cost: %f'%(epoch, time.time()-tic))
@@ -187,7 +199,7 @@ def main():
         kv = mx.kv.create(opt.kvstore)
         train_data, val_data = get_data_iters(dataset, batch_size, kv.num_workers, kv.rank)
         mod.fit(train_data,
-                eval_data = val_data,
+                eval_data=val_data,
                 num_epoch=opt.epochs,
                 kvstore=kv,
                 batch_end_callback = mx.callback.Speedometer(batch_size, max(1, opt.log_interval)),
@@ -202,6 +214,12 @@ def main():
         train(opt.epochs, context)
 
 if __name__ == '__main__':
+    profile_filename = "troubleshoot_profile.json"
+    profiler.set_config([('file_name', profile_filename),
+                         ('continuous_dump', 'true'),
+                         ('profile_symbolic', 'true'),
+                         ('aggregate_stats', 'true')])
+    profiler.set_state('run')
     if opt.profile:
         import hotshot, hotshot.stats
         prof = hotshot.Profile('image-classifier-%s-%s.prof'%(opt.model, opt.mode))

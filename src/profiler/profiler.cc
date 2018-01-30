@@ -41,8 +41,6 @@
 namespace mxnet {
 namespace profiler {
 
-ProfileDomain ProfileOperator::domain_("operator");
-
 Profiler::Profiler()
   : state_(kNotRunning)
     , enable_output_(false)

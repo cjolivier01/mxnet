@@ -108,11 +108,18 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
     const Context& ctx = opr_block->ctx;
     if ((opr_block->opr->prop == FnProperty::kAsync ||
          opr_block->opr->prop == FnProperty::kDeleteVar) && pusher_thread) {
+#if MXNET_USE_CUDA
       if (ctx.dev_mask() == Context::kGPU) {
-        #if MXNET_USE_CUDA
         MSHADOW_CATCH_ERROR(mshadow::SetDevice<gpu>(ctx.dev_id));
-        #endif
       }
+#endif
+#ifdef DEBUG_ENGINE_PUSH
+      if(opr_block->opr) {
+        std::cout << "ThreadedEnginePerDevice::PushToExecute() -> unqueued exec: "
+                  << opr_block->opr->opr_name << std::endl;
+
+      }
+#endif  // DEBUG_ENGINE_PUSH
       this->ExecuteOprBlock(RunContext{ctx, nullptr}, opr_block);
     } else {
       if (ctx.dev_mask() == Context::kCPU) {
