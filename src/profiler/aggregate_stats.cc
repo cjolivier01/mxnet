@@ -94,7 +94,7 @@ void AggregateStats::Dump(bool clear) {
                 << "-------------"
                 << std::endl;
       for (auto iter = sorted_map.begin(), e_iter = sorted_map.end(); iter != e_iter; ++iter) {
-        const StatData &data = iter->second;
+        const StatData &data = *iter->second;
         if (data.type_ == StatData::kDuration || data.type_ == StatData::kCounter) {
           const std::string &name = iter->first;
           std::cout << std::setw(NAME_WIDTH) << std::left << name
