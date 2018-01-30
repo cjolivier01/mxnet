@@ -469,6 +469,8 @@ class ThreadedEngine : public Engine {
     //std::cout << "BulkFlush(): Flushing " << bulk_status.count << " operations" << std::endl;
     bulk_status.count = 0;
     DeduplicateVarHandle(&bulk_status.const_vars, &bulk_status.mutable_vars);
+    const char *opr_name = PROFILER_MESSAGE(bulk_status.count > 1
+                                              ? "ImperativeBulk" : bulk_status.opr_name);
     auto fn = std::move(bulk_status.fn);
     this->PushAsync([fn](RunContext ctx, CallbackOnComplete on_complete) {
         //std::cout << "[";
@@ -476,11 +478,12 @@ class ThreadedEngine : public Engine {
         //std::cout << "]" << std::endl;
         on_complete();
       }, bulk_status.ctx, bulk_status.const_vars, bulk_status.mutable_vars,
-      FnProperty::kNormal, 0, PROFILER_MESSAGE("ImperativeBulk"));
+      FnProperty::kNormal, 0, opr_name);
 
     bulk_status.const_vars.clear();
     bulk_status.mutable_vars.clear();
   }
+
   /*!
    * \brief Number of pending operations.
    */
