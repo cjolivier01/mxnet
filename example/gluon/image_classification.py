@@ -221,6 +221,7 @@ if __name__ == '__main__':
     profiler.set_config([('file_name', profile_filename),
                          ('continuous_dump', 'true'),
                          ('profile_symbolic', 'true'),
+                         ('profile_imperative', 'true'),
                          ('aggregate_stats', 'true')])
     profiler.set_state('run')
     profiler.pause()
