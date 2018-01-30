@@ -45,10 +45,12 @@ struct CachedOpParam : public dmlc::Parameter<CachedOpParam> {
     .set_default(2)
     .describe("Maximum number of operators that can be inlined.");
     DMLC_DECLARE_FIELD(forward_bulk_size)
-    .set_default(dmlc::GetEnv("MXNET_EXEC_BULK_EXEC_MAX_NODE_TRAIN", 15))
+    .set_default(dmlc::GetEnv("MXNET_EXEC_BULK_EXEC_TRAIN", 1) ?
+                 dmlc::GetEnv("MXNET_EXEC_BULK_EXEC_MAX_NODE_TRAIN", 15U) : 0U)
     .describe("Segment size of bulk execution during forward pass.");
     DMLC_DECLARE_FIELD(backward_bulk_size)
-    .set_default(dmlc::GetEnv("MXNET_EXEC_BULK_EXEC_MAX_NODE_TRAIN", 15))
+    .set_default(dmlc::GetEnv("MXNET_EXEC_BULK_EXEC_TRAIN", 1) ?
+                 dmlc::GetEnv("MXNET_EXEC_BULK_EXEC_MAX_NODE_TRAIN", 15U) : 0U)
     .describe("Segment size of bulk execution during backward pass.");
   }
 };

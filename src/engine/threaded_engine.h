@@ -378,7 +378,9 @@ class ThreadedEngine : public Engine {
   int set_bulk_size(int bulk_size) override {
     BulkStatus& bulk_status = *BulkStatusStore::Get();
     std::swap(bulk_status.bulk_size, bulk_size);
-    if (bulk_status.count >= bulk_status.bulk_size) BulkFlush();
+    if (bulk_status.count >= bulk_status.bulk_size) {
+      BulkFlush();
+    }
     return bulk_size;
   }
 
@@ -393,6 +395,8 @@ class ThreadedEngine : public Engine {
     Context ctx;
     /*! \brief current op functions */
     SyncFn fn;
+    /*! \brief Operator name */
+    const char *opr_name = nullptr;
     /*! \brief constant variables */
     std::vector<VarHandle> const_vars;
     /*! \brief mutable variables */
@@ -415,42 +419,64 @@ class ThreadedEngine : public Engine {
   inline void OnComplete(ThreadedOpr* threaded_opr);
   // callback to the threaded engine
   static void OnCompleteStatic(Engine *engine, void *threaded_opr);
+
   /*! \brief append an operator to bulk */
   inline void BulkAppend(SyncFn exec_fn, Context exec_ctx,
                          std::vector<VarHandle> const& const_vars,
-                         std::vector<VarHandle> const& mutable_vars) {
+                         std::vector<VarHandle> const& mutable_vars,
+                         const char *opr_name) {
     BulkStatus& bulk_status = *BulkStatusStore::Get();
     if (!bulk_status.count) {
+      // If it's the first one, just set the fn to be that function
       bulk_status.ctx = exec_ctx;
       bulk_status.fn = std::move(exec_fn);
+      bulk_status.opr_name = opr_name;
     } else {
+      CHECK_EQ(bulk_status.ctx, exec_ctx);
+      // Chaining calls -- call the previous function (fn) and then call this one (exec_fn)
       auto prev_fn = std::move(bulk_status.fn);
-      bulk_status.fn = [exec_fn, prev_fn](RunContext rctx) {
-          prev_fn(rctx);
-          exec_fn(rctx);
-        };
+      const char *prev_opr_name = bulk_status.opr_name;
+      bulk_status.opr_name = opr_name;
+      bulk_status.fn = [exec_fn, opr_name, prev_fn, prev_opr_name](RunContext rctx) {
+        // In side the callback, call the prev one
+        prev_fn(rctx);
+        // Call the current one
+        //std::cout << opr_name << "," << std::flush;
+        exec_fn(rctx);
+      };
     }
 
     ++bulk_status.count;
-    bulk_status.const_vars.insert(
-        bulk_status.const_vars.end(), const_vars.begin(), const_vars.end());
-    bulk_status.mutable_vars.insert(
-        bulk_status.mutable_vars.end(), mutable_vars.begin(), mutable_vars.end());
+    bulk_status.const_vars.reserve(bulk_status.const_vars.size() + const_vars.size());
+    bulk_status.const_vars.insert(bulk_status.const_vars.end(),
+                                  const_vars.begin(), const_vars.end());
 
-    if (bulk_status.count >= bulk_status.bulk_size) BulkFlush();
+    bulk_status.mutable_vars.reserve(bulk_status.mutable_vars.size() + mutable_vars.size());
+    bulk_status.mutable_vars.insert(bulk_status.mutable_vars.end(),
+                                    mutable_vars.begin(), mutable_vars.end());
+
+    if (bulk_status.count >= bulk_status.bulk_size) {
+      BulkFlush();
+    }
   }
+
   /*! \brief flush current bulk to execution */
   inline void BulkFlush() {
     BulkStatus& bulk_status = *BulkStatusStore::Get();
-    if (!bulk_status.count) return;
+    if (!bulk_status.count) {
+      return;
+    }
+    //std::cout << "BulkFlush(): Flushing " << bulk_status.count << " operations" << std::endl;
     bulk_status.count = 0;
     DeduplicateVarHandle(&bulk_status.const_vars, &bulk_status.mutable_vars);
     auto fn = std::move(bulk_status.fn);
     this->PushAsync([fn](RunContext ctx, CallbackOnComplete on_complete) {
-        fn(ctx);
+        //std::cout << "[";
+        fn(ctx);  // This may call a chain of functions as built up by BulkAppend
+        //std::cout << "]" << std::endl;
         on_complete();
       }, bulk_status.ctx, bulk_status.const_vars, bulk_status.mutable_vars,
-      FnProperty::kNormal, 0, "ImperativeBulk");
+      FnProperty::kNormal, 0, PROFILER_MESSAGE("ImperativeBulk"));
 
     bulk_status.const_vars.clear();
     bulk_status.mutable_vars.clear();

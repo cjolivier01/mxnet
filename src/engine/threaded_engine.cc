@@ -347,9 +347,10 @@ void ThreadedEngine::PushSync(SyncFn exec_fn, Context exec_ctx,
     return;
   }
 
-  if (bulk_status.count && exec_ctx != bulk_status.ctx) BulkFlush();
-  BulkAppend(exec_fn, exec_ctx, const_vars, mutable_vars);
-  return;
+  if (bulk_status.count && exec_ctx != bulk_status.ctx) {
+    BulkFlush();
+  }
+  BulkAppend(exec_fn, exec_ctx, const_vars, mutable_vars, opr_name);
 }
 
 void ThreadedEngine::DeleteVariable(SyncFn delete_fn,
