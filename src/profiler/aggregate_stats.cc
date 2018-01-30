@@ -56,8 +56,12 @@ void AggregateStats::Dump(bool clear) {
   for (auto type_iter = stats_.begin(), type_e_iter = stats_.end();
       type_iter != type_e_iter; ++type_iter) {
     const std::string& type = type_iter->first;
-    const std::unordered_map<std::string, StatData>& mm = type_iter->second;
-    if (!mm.empty()) {
+    const std::unordered_map<std::string, StatData>& unsorted_map = type_iter->second;
+    std::map<std::string, const StatData *> sorted_map;
+    for(const auto& item : unsorted_map) {
+      sorted_map.emplace(std::make_pair(item.first, &item.second));
+    }
+    if (!sorted_map.empty()) {
       std::cout << type << std::endl << "=================" << std::endl;
       std::cout << std::setw(NAME_WIDTH) << std::left  << "Name"
                 << std::setw(16) << std::right << "Total Count"
@@ -89,7 +93,7 @@ void AggregateStats::Dump(bool clear) {
                 << std::setw(16) << std::right
                 << "-------------"
                 << std::endl;
-      for (auto iter = mm.begin(), e_iter = mm.end(); iter != e_iter; ++iter) {
+      for (auto iter = sorted_map.begin(), e_iter = sorted_map.end(); iter != e_iter; ++iter) {
         const StatData &data = iter->second;
         if (data.type_ == StatData::kDuration || data.type_ == StatData::kCounter) {
           const std::string &name = iter->first;
