@@ -147,7 +147,7 @@ def train(epochs, ctx):
     loss.hybridize()
 
     #view_net(loss)
-
+    profiler.resume()
     for epoch in range(epochs):
         tic = time.time()
         train_data.reset()
@@ -188,6 +188,7 @@ def train(epochs, ctx):
         name, val_acc = test(ctx, val_data)
         logging.info('[Epoch %d] validation: %s=%f'%(epoch, name, val_acc))
 
+    profiler.pause()
     net.save_params('image-classifier-%s-%d.params'%(opt.model, epochs))
 
 def main():
@@ -198,6 +199,7 @@ def main():
         mod = mx.mod.Module(softmax, context=[mx.gpu(i) for i in range(num_gpus)] if num_gpus > 0 else [mx.cpu()])
         kv = mx.kv.create(opt.kvstore)
         train_data, val_data = get_data_iters(dataset, batch_size, kv.num_workers, kv.rank)
+        profiler.resume()
         mod.fit(train_data,
                 eval_data=val_data,
                 num_epoch=opt.epochs,
@@ -207,6 +209,7 @@ def main():
                 optimizer = 'sgd',
                 optimizer_params = {'learning_rate': opt.lr, 'wd': opt.wd, 'momentum': opt.momentum},
                 initializer = mx.init.Xavier(magnitude=2))
+        profiler.pause()
         mod.save_params('image-classifier-%s-%d-final.params'%(opt.model, opt.epochs))
     else:
         if opt.mode == 'hybrid':
@@ -220,6 +223,7 @@ if __name__ == '__main__':
                          ('profile_symbolic', 'true'),
                          ('aggregate_stats', 'true')])
     profiler.set_state('run')
+    profiler.pause()
     if opt.profile:
         import hotshot, hotshot.stats
         prof = hotshot.Profile('image-classifier-%s-%s.prof'%(opt.model, opt.mode))
