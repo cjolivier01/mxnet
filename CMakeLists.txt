@@ -403,8 +403,6 @@ if(USE_PLUGINS_WARPCTC)
     set(WARPCTC_INCLUDE  "" CACHE PATH "WARPCTC include")
     set(WARPCTC_LIB_DEBUG  "" CACHE FILEPATH "WARPCTC lib")
     set(WARPCTC_LIB_RELEASE  "" CACHE FILEPATH "WARPCTC lib")
-
-
     include_directories(SYSTEM ${WARPCTC_INCLUDE})
     list(APPEND mxnet_LINKER_LIBS ${WARPCTC_LIB})
     FILE(GLOB_RECURSE PLUGINS_SOURCE "plugin/warpctc/*.cc" "plugin/warpctc/*.h")
