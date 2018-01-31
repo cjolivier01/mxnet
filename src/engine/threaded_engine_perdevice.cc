@@ -228,7 +228,7 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
   inline void GPUWorker(Context ctx,
                         bool is_copy_worker,
                         ThreadWorkerBlock<type> *block,
-                        std::shared_ptr<dmlc::ManualEvent> ready_event) {
+                        const std::shared_ptr<dmlc::ManualEvent>& ready_event) {
     this->is_worker_ = true;
 #if MXNET_USE_CUDA
     CHECK(block != nullptr);
@@ -263,7 +263,7 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
   template<dmlc::ConcurrentQueueType type>
   inline void CPUWorker(Context ctx,
                         ThreadWorkerBlock<type> *block,
-                        std::shared_ptr<dmlc::ManualEvent> ready_event) {
+                        const std::shared_ptr<dmlc::ManualEvent>& ready_event) {
     this->is_worker_ = true;
     auto* task_queue = &(block->task_queue);
     RunContext run_ctx{ctx, nullptr};
