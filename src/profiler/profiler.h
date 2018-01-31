@@ -1069,27 +1069,27 @@ struct ProfileOperator : public ProfileEvent {
     std::unordered_map<std::string, std::string> attr_;
     std::string to_string() const {
       std::stringstream ss;
-      if(!inputs_.empty()) {
+      if (!inputs_.empty()) {
         ss << "in: [";
-        for(size_t i = 0, n = inputs_.size(); i < n; ++i) {
-          if(i) {
+        for (size_t i = 0, n = inputs_.size(); i < n; ++i) {
+          if (i) {
             ss << ",";
           }
           ss << inputs_[i];
         }
         ss << "]";
       }
-      if(!outputs_.empty()) {
+      if (!outputs_.empty()) {
         ss << "out: [";
-        for(size_t i = 0, n = outputs_.size(); i < n; ++i) {
-          if(i) {
+        for (size_t i = 0, n = outputs_.size(); i < n; ++i) {
+          if (i) {
             ss << ",";
           }
           ss << outputs_[i];
         }
         ss << "]";
       }
-      if(!attr_.empty()) {
+      if (!attr_.empty()) {
         for (const auto &tt : attr_) {
           ss << " (" << tt.first << "=" << tt.second << ")";
         }
@@ -1146,7 +1146,7 @@ struct ProfileOperator : public ProfileEvent {
         , dev_type_(dev_type)
         , dev_id_(dev_id) {
       name_.set(name);
-      if(attributes) {
+      if (attributes) {
         name_.append(attributes->to_string().c_str());
       }
       categories_.set("operator");
@@ -1165,9 +1165,7 @@ struct ProfileOperator : public ProfileEvent {
    */
   void SendStat() override {
     Profiler::Get()->AddNewProfileStat<OprExecStat>(
-      [this](OprExecStat *stat) {
-
-      }, name_.c_str(), dev_type_, dev_id_,
+      [this](OprExecStat *stat) {}, name_.c_str(), dev_type_, dev_id_,
       start_time_, ProfileStat::NowInMicrosec(),
       attributes_.get());
   }
