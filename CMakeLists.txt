@@ -9,6 +9,7 @@ include(cmake/Utils.cmake)
 #Some things have order. This must be put in front alone
 mxnet_option(USE_CUDA             "Build with CUDA support"   ON)
 mxnet_option(USE_OLDCMAKECUDA     "Build with old cmake cuda" OFF)
+mxnet_option(USE_NCCL             "Use NVidia NCCL with CUDA" ON IF USE_CUDA)
 mxnet_option(USE_OPENCV           "Build with OpenCV support" ON)
 mxnet_option(USE_OPENMP           "Build with Openmp support" ON)
 mxnet_option(USE_CUDNN            "Build with cudnn support"  ON) # one could set CUDNN_ROOT for search path
@@ -37,7 +38,6 @@ if(USE_CUDA)
 else()
   project(mxnet CXX)
 endif()
-
 
 if(MSVC)
   set(SYSTEM_ARCHITECTURE x86_64)
@@ -187,6 +187,12 @@ if(USE_CUDA)
   endif()
 else()
   add_definitions(-DMSHADOW_USE_CUDA=0)
+endif()
+
+if(NCCL_FOUND)
+  add_definitions(-DMXNET_USE_NCCL=1)
+else()
+  add_definitions(-DMXNET_USE_NCCL=0)
 endif()
 
 if(USE_CUDA AND FIRST_CUDA)
