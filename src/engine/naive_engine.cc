@@ -96,7 +96,7 @@ class NaiveEngine final : public Engine {
 #if MXNET_USE_PROFILER
         if (opr->profiling) {
           std::unique_ptr<profiler::ProfileOperator::Attributes> attrs;
-          if(profiler->AggregateEnabled()) {
+          if (profiler->AggregateEnabled()) {
             attrs.reset(new profiler::ProfileOperator::Attributes());
           }
           opr->opr_profile.reset(new profiler::ProfileOperator(opr->opr_name, attrs.release()));
@@ -137,7 +137,7 @@ class NaiveEngine final : public Engine {
                         prop, opr_name)->Cast<NaiveOpr>();
       opr->profiling = profiling;
       std::unique_ptr<profiler::ProfileOperator::Attributes> attrs;
-      if(profiler->AggregateEnabled()) {
+      if (profiler->AggregateEnabled()) {
         attrs.reset(new profiler::ProfileOperator::Attributes());
       }
       opr->opr_profile.reset(new profiler::ProfileOperator(opr->opr_name, attrs.release()));
