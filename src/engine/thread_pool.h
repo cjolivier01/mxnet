@@ -44,13 +44,7 @@ class ThreadPool {
   struct SetReadyOnDestroy {
     explicit inline SetReadyOnDestroy(const std::shared_ptr<dmlc::ManualEvent>& event)
       : event_(event) {
-      inline ~SetReadyOnDestroy() {
-        if (event_) {
-          event_->signal();
-        }
-      }
-      std::shared_ptr<dmlc::ManualEvent>  event_;
-    };
+    }
     inline ~SetReadyOnDestroy() {
       if (event_) {
         event_->signal();
