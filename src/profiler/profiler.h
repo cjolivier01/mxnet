@@ -1094,6 +1094,7 @@ struct ProfileOperator : public ProfileEvent {
           ss << " (" << tt.first << "=" << tt.second << ")";
         }
       }
+      return ss.str();
     }
   };
 
