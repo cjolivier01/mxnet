@@ -328,7 +328,7 @@ class KVStoreNCCL : public KVStoreLocal {
 
       if (!inited_) {
         // copy to a random device first
-        int dev_id = key % dst.size();
+        const int dev_id = key % dst.size();
         CopyFromTo(src, *dst[dev_id], priority);
         for (size_t i = 0; i < dst.size(); ++i) {
           if (i != static_cast<size_t>(dev_id)) {
@@ -338,7 +338,7 @@ class KVStoreNCCL : public KVStoreLocal {
       } else {
         auto& buf = merge_buf_[key];
         int root = src.ctx().dev_id;
-        assert(root == buf.ctx().dev_id);
+        assert(root == buf.merged.ctx().dev_id);
         root_id = FindRootId(dst, root);
 
         // Check whether we got the same set of devices
