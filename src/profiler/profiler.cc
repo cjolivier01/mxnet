@@ -28,10 +28,11 @@
 #include <mxnet/base.h>
 #include <fstream>
 #include <thread>
-#include "./profiler.h"
+#include "./profile_operator.h"
 
 #if MXNET_USE_CUDA
 #include "../common/cuda_utils.h"
+
 #endif
 
 #if defined(_MSC_VER) && _MSC_VER <= 1800

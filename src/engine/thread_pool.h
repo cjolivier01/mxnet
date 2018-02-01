@@ -42,8 +42,8 @@ class ThreadPool {
  public:
   /*! \brief Signal event upon destruction, even for exceptions (RAII) */
   struct SetReadyOnDestroy {
-    explicit inline SetReadyOnDestroy(std::shared_ptr<dmlc::ManualEvent> *event)
-      : event_(*event) {
+    explicit inline SetReadyOnDestroy(const std::shared_ptr<dmlc::ManualEvent>& event)
+      : event_(event) {
     }
     inline ~SetReadyOnDestroy() {
       if (event_) {
@@ -60,6 +60,7 @@ class ThreadPool {
    */
   explicit ThreadPool(size_t size, std::function<void()> func)
       : worker_threads_(size) {
+    CHECK_GT(size, 0);
     for (auto& i : worker_threads_) {
       i = std::thread(func);
     }
@@ -68,6 +69,7 @@ class ThreadPool {
                       std::function<void(std::shared_ptr<dmlc::ManualEvent> ready)> func,
                       const bool wait)
       : worker_threads_(size) {
+    CHECK_GT(size, 0);
     for (auto& i : worker_threads_) {
       std::shared_ptr<dmlc::ManualEvent> ptr = std::make_shared<dmlc::ManualEvent>();
       ready_events_.emplace_back(ptr);
@@ -88,7 +90,7 @@ class ThreadPool {
    * \brief Wait for all started threads to signal that they're ready
    */
   void WaitForReady() {
-    for (std::shared_ptr<dmlc::ManualEvent> ptr : ready_events_) {
+    for (const std::shared_ptr<dmlc::ManualEvent>& ptr : ready_events_) {
       ptr->wait();
     }
   }

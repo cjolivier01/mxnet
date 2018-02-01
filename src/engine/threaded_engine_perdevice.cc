@@ -90,7 +90,7 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
 
   void Start() override {
     if (is_worker_) return;
-    gpu_worker_nthreads_ = common::GetNumThreadPerGPU();
+    gpu_worker_nthreads_ = common::GetNumThreadsPerGPU();
     cpu_worker_nthreads_ = dmlc::GetEnv("MXNET_CPU_WORKER_NTHREADS", 1);
     // create CPU task
     int cpu_priority_nthreads = dmlc::GetEnv("MXNET_CPU_PRIORITY_NTHREADS", 4);
@@ -135,8 +135,8 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
                   [this, ctx, blk](std::shared_ptr<dmlc::ManualEvent> ready_event) {
                     this->CPUWorker(ctx, blk, ready_event);
                   }, true));
-              return blk;
-            });
+            return blk;
+          });
           if (ptr) {
             if (opr_block->opr->prop == FnProperty::kDeleteVar) {
               ptr->task_queue.PushFront(opr_block, opr_block->priority);
@@ -148,13 +148,12 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
       } else {
         CHECK_EQ(ctx.dev_mask(), Context::kGPU);
         // GPU execution.
-        FnProperty prop = opr_block->opr->prop;
-        bool is_copy = (prop == FnProperty::kCopyFromGPU ||
-                        prop == FnProperty::kCopyToGPU);
-        int nthread = gpu_worker_nthreads_;
+        const FnProperty prop = opr_block->opr->prop;
+        const bool is_copy = (prop == FnProperty::kCopyFromGPU ||
+                              prop == FnProperty::kCopyToGPU);
+        const size_t nthread = gpu_worker_nthreads_;
         if (is_copy) {
-          auto ptr =
-          gpu_copy_workers_.Get(ctx.dev_id, [this, ctx, is_copy, nthread]() {
+          auto ptr = gpu_copy_workers_.Get(ctx.dev_id, [this, ctx, is_copy, nthread]() {
             // Signify to kernel that GPU is being used, so reserve cores as necessary
             OpenMP::Get()->set_reserve_cores(GetReserveCoreCount(true));
             auto blk = new ThreadWorkerBlock<kCopyQueue>();
@@ -185,7 +184,7 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
                     this->GPUWorker(ctx, is_copy, blk, ready_event);
                   }, true));
               return blk;
-            });
+          });
           if (ptr) {
             if (opr_block->opr->prop == FnProperty::kDeleteVar) {
               ptr->task_queue.PushFront(opr_block, opr_block->priority);
@@ -215,9 +214,9 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
   /*! \brief whether this is a worker thread. */
   static MX_THREAD_LOCAL bool is_worker_;
   /*! \brief number of concurrent thread cpu worker uses */
-  int cpu_worker_nthreads_;
+  size_t cpu_worker_nthreads_;
   /*! \brief number of concurrent thread each gpu worker uses */
-  int gpu_worker_nthreads_;
+  size_t gpu_worker_nthreads_;
   // cpu worker
   common::LazyAllocArray<ThreadWorkerBlock<kWorkerQueue> > cpu_normal_workers_;
   // cpu priority worker
@@ -236,12 +235,13 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
   inline void GPUWorker(Context ctx,
                         bool is_copy_worker,
                         ThreadWorkerBlock<type> *block,
-                        std::shared_ptr<dmlc::ManualEvent> ready_event) {
+                        const std::shared_ptr<dmlc::ManualEvent>& ready_event) {
     this->is_worker_ = true;
 #if MXNET_USE_CUDA
+    CHECK(block != nullptr);
     mshadow::Stream<gpu> *stream;
     do {
-      ThreadPool::SetReadyOnDestroy setReady(&ready_event);
+      ThreadPool::SetReadyOnDestroy setReady(ready_event);
       // allocate stream
       mshadow::SetDevice<gpu>(ctx.dev_id);
       if (is_copy_worker) {
@@ -270,7 +270,7 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
   template<dmlc::ConcurrentQueueType type>
   inline void CPUWorker(Context ctx,
                         ThreadWorkerBlock<type> *block,
-                        std::shared_ptr<dmlc::ManualEvent> ready_event) {
+                        const std::shared_ptr<dmlc::ManualEvent>& ready_event) {
     this->is_worker_ = true;
     auto* task_queue = &(block->task_queue);
     RunContext run_ctx{ctx, nullptr};
