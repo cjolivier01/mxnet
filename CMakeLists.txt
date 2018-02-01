@@ -1,15 +1,17 @@
 cmake_minimum_required(VERSION 3.0.2)
 
+project(mxnet C CXX)
+
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/build/private/local_config.cmake)
   include(${CMAKE_CURRENT_SOURCE_DIR}/build/private/local_config.cmake)
 endif()
 
-include(cmake/Utils.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Utils.cmake)
 
 #Some things have order. This must be put in front alone
 mxnet_option(USE_CUDA             "Build with CUDA support"   ON)
 mxnet_option(USE_OLDCMAKECUDA     "Build with old cmake cuda" OFF)
-mxnet_option(USE_NCCL             "Use NVidia NCCL with CUDA" ON IF USE_CUDA)
+mxnet_option(USE_NCCL             "Use NVidia NCCL with CUDA" OFF)
 mxnet_option(USE_OPENCV           "Build with OpenCV support" ON)
 mxnet_option(USE_OPENMP           "Build with Openmp support" ON)
 mxnet_option(USE_CUDNN            "Build with cudnn support"  ON) # one could set CUDNN_ROOT for search path
@@ -36,14 +38,14 @@ mxnet_option(USE_SIGNAL_HANDLER   "Print stack traces on segfaults." OFF)
 if(USE_CUDA AND NOT USE_OLDCMAKECUDA)
   message(STATUS "CMake version '${CMAKE_VERSION}' using generator '${CMAKE_GENERATOR}'")
   if(
-      (
-        (${CMAKE_GENERATOR} MATCHES "Visual Studio.*")
-        OR (${CMAKE_GENERATOR} MATCHES "Xcode.*")
-        OR (${CMAKE_GENERATOR} STREQUAL "Unix Makefiles")
-      ) AND (
-        (${CMAKE_VERSION} VERSION_GREATER "3.9.0") OR (${CMAKE_VERSION} VERSION_EQUAL "3.9.0")
-      )
-    )
+  (
+  (${CMAKE_GENERATOR} MATCHES "Visual Studio.*")
+    OR (${CMAKE_GENERATOR} MATCHES "Xcode.*")
+    OR (${CMAKE_GENERATOR} STREQUAL "Unix Makefiles")
+  ) AND (
+  (${CMAKE_VERSION} VERSION_GREATER "3.9.0") OR (${CMAKE_VERSION} VERSION_EQUAL "3.9.0")
+  )
+  )
     set(FIRST_CUDA TRUE)
     project(mxnet C CXX CUDA)
   else()
@@ -226,7 +228,7 @@ endif()
 list(APPEND mxnet_LINKER_LIBS ${mshadow_LINKER_LIBS})
 
 foreach(var ${C_CXX_INCLUDE_DIRECTORIES})
-    include_directories(${var})
+  include_directories(${var})
 endforeach()
 
 include_directories("include")
@@ -370,7 +372,7 @@ if(USE_CUDNN AND USE_CUDA)
     add_definitions(-DUSE_CUDNN)
     include_directories(SYSTEM ${CUDNN_INCLUDE})
     list(APPEND mxnet_LINKER_LIBS ${CUDNN_LIBRARY})
-      add_definitions(-DMSHADOW_USE_CUDNN=1)
+    add_definitions(-DMSHADOW_USE_CUDNN=1)
   endif()
 endif()
 
@@ -411,15 +413,15 @@ assign_source_group("Include" ${GROUP_Include})
 assign_source_group("CUDA" ${GROUP_CUDA})
 
 if(USE_PLUGINS_WARPCTC)
-    set(WARPCTC_INCLUDE  "" CACHE PATH "WARPCTC include")
-    set(WARPCTC_LIB_DEBUG  "" CACHE FILEPATH "WARPCTC lib")
-    set(WARPCTC_LIB_RELEASE  "" CACHE FILEPATH "WARPCTC lib")
-    include_directories(SYSTEM ${WARPCTC_INCLUDE})
-    list(APPEND mxnet_LINKER_LIBS ${WARPCTC_LIB})
-    FILE(GLOB_RECURSE PLUGINS_SOURCE "plugin/warpctc/*.cc" "plugin/warpctc/*.h")
-    FILE(GLOB_RECURSE PLUGINS_CUSRC "plugin/warpctc/*.cu")
-    list(APPEND SOURCE ${PLUGINS_SOURCE})
-    list(APPEND CUDA ${PLUGINS_CUSRC})
+  set(WARPCTC_INCLUDE  "" CACHE PATH "WARPCTC include")
+  set(WARPCTC_LIB_DEBUG  "" CACHE FILEPATH "WARPCTC lib")
+  set(WARPCTC_LIB_RELEASE  "" CACHE FILEPATH "WARPCTC lib")
+  include_directories(SYSTEM ${WARPCTC_INCLUDE})
+  list(APPEND mxnet_LINKER_LIBS ${WARPCTC_LIB})
+  FILE(GLOB_RECURSE PLUGINS_SOURCE "plugin/warpctc/*.cc" "plugin/warpctc/*.h")
+  FILE(GLOB_RECURSE PLUGINS_CUSRC "plugin/warpctc/*.cu")
+  list(APPEND SOURCE ${PLUGINS_SOURCE})
+  list(APPEND CUDA ${PLUGINS_CUSRC})
 endif()
 
 if(USE_OPERATOR_TUNING AND USE_OPENMP)
@@ -458,21 +460,21 @@ if(USE_PLUGIN_CAFFE)
     protobuf boost_system boost_thread boost_filesystem
     gflags glog caffe
     ${Caffe_LINKER_LIBS}
-)
+    )
 endif()
 
 if (NOT (EXTRA_OPERATORS STREQUAL ""))
-    mxnet_source_group("Extra"   GLOB_RECURSE "${EXTRA_OPERATORS}/*.cc")
-    mxnet_source_group("Extra\\Cuda"   GLOB_RECURSE "${EXTRA_OPERATORS}/*.cu")
-    FILE(GLOB_RECURSE EXTRA_SRC "${EXTRA_OPERATORS}/*.cc")
-    FILE(GLOB_RECURSE EXTRA_CUSRC "${EXTRA_OPERATORS}/*.cu")
-    list(APPEND SOURCE ${EXTRA_SRC} ${EXTRA_CUSRC})
+  mxnet_source_group("Extra"   GLOB_RECURSE "${EXTRA_OPERATORS}/*.cc")
+  mxnet_source_group("Extra\\Cuda"   GLOB_RECURSE "${EXTRA_OPERATORS}/*.cu")
+  FILE(GLOB_RECURSE EXTRA_SRC "${EXTRA_OPERATORS}/*.cc")
+  FILE(GLOB_RECURSE EXTRA_CUSRC "${EXTRA_OPERATORS}/*.cu")
+  list(APPEND SOURCE ${EXTRA_SRC} ${EXTRA_CUSRC})
 endif()
 
 if(MSVC)
   foreach(flag_var
-        CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
-        CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+    CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
+    CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
     if(${flag_var} MATCHES "/MD")
       string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
     endif(${flag_var} MATCHES "/MD")
@@ -487,8 +489,8 @@ if(USE_CUDA)
     set(CMAKE_CUDA_FLAGS_RELEASE "${NVCC_FLAGS_ARCH} -use_fast_math")
     list(APPEND mxnet_LINKER_LIBS cublas cufft cusolver curand)
     if(ENABLE_CUDA_RTC)
-        list(APPEND mxnet_LINKER_LIBS nvrtc cuda)
-        add_definitions(-DMXNET_ENABLE_CUDA_RTC=1)
+      list(APPEND mxnet_LINKER_LIBS nvrtc cuda)
+      add_definitions(-DMXNET_ENABLE_CUDA_RTC=1)
     endif()
     list(APPEND SOURCE ${CUDA})
     add_definitions(-DMXNET_USE_CUDA=1)
@@ -498,42 +500,42 @@ if(USE_CUDA)
     # define preprocessor macro so that we will not include the generated forcelink header
     mshadow_cuda_compile(cuda_objs ${CUDA})
     if(MSVC)
-        if(ENABLE_CUDA_RTC)
-            FIND_LIBRARY(CUDA_nvrtc_LIBRARY nvrtc "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64"  "${CUDA_TOOLKIT_ROOT_DIR}/lib/win32")
-            list(APPEND mxnet_LINKER_LIBS ${CUDA_nvrtc_LIBRARY})
-            set(CUDA_cuda_LIBRARY "${CUDA_nvrtc_LIBRARY}/../cuda.lib")
-            list(APPEND mxnet_LINKER_LIBS ${CUDA_cuda_LIBRARY})
-            add_definitions(-DMXNET_ENABLE_CUDA_RTC=1)
-        endif()
-        FIND_LIBRARY(CUDA_cufft_LIBRARY nvrtc "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64"  "${CUDA_TOOLKIT_ROOT_DIR}/lib/win32")
-        list(APPEND mxnet_LINKER_LIBS "${CUDA_cufft_LIBRARY}/../cufft.lib") # For fft operator
-        FIND_LIBRARY(CUDA_cusolver_LIBRARY nvrtc "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64"  "${CUDA_TOOLKIT_ROOT_DIR}/lib/win32")
-        list(APPEND mxnet_LINKER_LIBS "${CUDA_cusolver_LIBRARY}/../cusolver.lib") # For cusolver
-        link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib/win32)
-        link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib/x64)
+      if(ENABLE_CUDA_RTC)
+        FIND_LIBRARY(CUDA_nvrtc_LIBRARY nvrtc "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64"  "${CUDA_TOOLKIT_ROOT_DIR}/lib/win32")
+        list(APPEND mxnet_LINKER_LIBS ${CUDA_nvrtc_LIBRARY})
+        set(CUDA_cuda_LIBRARY "${CUDA_nvrtc_LIBRARY}/../cuda.lib")
+        list(APPEND mxnet_LINKER_LIBS ${CUDA_cuda_LIBRARY})
+        add_definitions(-DMXNET_ENABLE_CUDA_RTC=1)
+      endif()
+      FIND_LIBRARY(CUDA_cufft_LIBRARY nvrtc "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64"  "${CUDA_TOOLKIT_ROOT_DIR}/lib/win32")
+      list(APPEND mxnet_LINKER_LIBS "${CUDA_cufft_LIBRARY}/../cufft.lib") # For fft operator
+      FIND_LIBRARY(CUDA_cusolver_LIBRARY nvrtc "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64"  "${CUDA_TOOLKIT_ROOT_DIR}/lib/win32")
+      list(APPEND mxnet_LINKER_LIBS "${CUDA_cusolver_LIBRARY}/../cusolver.lib") # For cusolver
+      link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib/win32)
+      link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib/x64)
     else(MSVC)
-        list(APPEND mxnet_LINKER_LIBS cufft cusolver)
-        if(ENABLE_CUDA_RTC)
-            list(APPEND mxnet_LINKER_LIBS nvrtc cuda)
-            add_definitions(-DMXNET_ENABLE_CUDA_RTC=1)
-        endif()
-        link_directories("${CUDA_TOOLKIT_ROOT_DIR}/lib64")
+      list(APPEND mxnet_LINKER_LIBS cufft cusolver)
+      if(ENABLE_CUDA_RTC)
+        list(APPEND mxnet_LINKER_LIBS nvrtc cuda)
+        add_definitions(-DMXNET_ENABLE_CUDA_RTC=1)
+      endif()
+      link_directories("${CUDA_TOOLKIT_ROOT_DIR}/lib64")
     endif()
     list(APPEND SOURCE ${cuda_objs} ${CUDA})
     add_definitions(-DMXNET_USE_CUDA=1)
     if(CUDA_LIBRARY_PATH)
-        if(IS_CONTAINER_BUILD)
+      if(IS_CONTAINER_BUILD)
         # In case of building on a production-like build container which may not have Cuda installed
         if(NOT CMAKE_SYSTEM_HAS_CUDA)
-            # Assuming building in a container that doesn't have CUDA installed (ie CPU-only build machine)
-            # so use the stub cuda driver shared library
-            if(EXISTS ${CUDA_LIBRARY_PATH}/stubs/libcuda.so)
+          # Assuming building in a container that doesn't have CUDA installed (ie CPU-only build machine)
+          # so use the stub cuda driver shared library
+          if(EXISTS ${CUDA_LIBRARY_PATH}/stubs/libcuda.so)
             link_directories(${CUDA_LIBRARY_PATH}/stubs)
-            endif()
+          endif()
         endif()
-        endif()
+      endif()
     endif()
- endif()
+  endif()
 endif()
 
 # unsupported: if caffe is a subdirectory of mxnet, load its CMakeLists.txt as well
@@ -548,7 +550,13 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/nnvm/CMakeLists.txt")
   list(APPEND mxnet_LINKER_LIBS ${nnvm_LINKER_LIBS})
 endif()
 
-if(MSVC)
+if(NOT MSVC)
+  # Only add c++11 flags and definitions after cuda compiling
+  add_definitions(-DDMLC_USE_CXX11)
+  add_definitions(-DMSHADOW_IN_CXX11)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
 endif()
 
@@ -612,7 +620,7 @@ if(MSVC AND USE_MXNET_LIB_NAMING)
 endif()
 
 if(USE_PROFILER)
-    add_definitions(-DMXNET_USE_PROFILER)
+  add_definitions(-DMXNET_USE_PROFILER)
 endif()
 
 add_subdirectory(tests)
@@ -622,7 +630,7 @@ install(TARGETS ${MXNET_INSTALL_TARGETS}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
+  )
 
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 if (INSTALL_EXAMPLES)
@@ -630,7 +638,7 @@ if (INSTALL_EXAMPLES)
 endif()
 
 if (USE_SIGNAL_HANDLER)
-    add_definitions(-DMXNET_USE_SIGNAL_HANDLER=1)
+  add_definitions(-DMXNET_USE_SIGNAL_HANDLER=1)
 endif()
 
 # AUTO_INSTALL_DIR -> Optional: specify post-build install direcory
@@ -676,3 +684,4 @@ endif()
 set(LINT_DIRS "include src plugin cpp-package tests")
 set(EXCLUDE_PATH "src/operator/contrib/ctc_include")
 add_custom_target(mxnet_lint COMMAND ${CMAKE_COMMAND} -DMSVC=${MSVC} -DPYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} -DLINT_DIRS=${LINT_DIRS} -DPROJECT_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DPROJECT_NAME=mxnet -DEXCLUDE_PATH=${EXCLUDE_PATH} -P ${CMAKE_CURRENT_SOURCE_DIR}/dmlc-core/cmake/lint.cmake)
+
