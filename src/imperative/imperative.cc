@@ -29,6 +29,9 @@ MX_THREAD_LOCAL bool Imperative::is_train_ = false;
 MX_THREAD_LOCAL bool Imperative::is_recording_ = false;
 #endif
 
+static profiler::ProfileDomain debug_domain("imperative_debug_domain");
+static profiler::ProfileCounter debug_counter("RungraphExit_DeleteVariableCount", &debug_domain);
+
 Imperative* Imperative::Get() {
   static Imperative inst;
   return &inst;
@@ -344,11 +347,21 @@ void Imperative::RunGraph(
     for (const auto& j : node.inputs) {
       size_t eid = idx.entry_id(j);
       --ref_count[eid];
-      if (ref_count[eid] == 0) arrays[eid]->ptr_.reset();
+      if (ref_count[eid] == 0) {
+        if(arrays[eid]->ptr_.use_count() == 1) {
+          ++debug_counter;
+        }
+        arrays[eid]->ptr_.reset();
+      }
     }
     for (size_t j = 0; j < ndoutputs.size(); ++j) {
       size_t eid = idx.entry_id(i, j);
-      if (ref_count[eid] == 0) arrays[eid]->ptr_.reset();
+      if (ref_count[eid] == 0) {
+        if(arrays[eid]->ptr_.use_count() == 1) {
+          ++debug_counter;
+        }
+        arrays[eid]->ptr_.reset();
+      }
     }
   }
 }

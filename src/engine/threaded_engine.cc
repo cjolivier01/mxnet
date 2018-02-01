@@ -31,6 +31,7 @@
 #include <utility>
 #include "./threaded_engine.h"
 #include "../common/cuda_utils.h"
+#include "../profiler/profiler.h"
 
 namespace mxnet {
 namespace engine {
@@ -353,9 +354,13 @@ void ThreadedEngine::PushSync(SyncFn exec_fn, Context exec_ctx,
   BulkAppend(exec_fn, exec_ctx, const_vars, mutable_vars, opr_name);
 }
 
+static profiler::ProfileDomain debug_domain("threaded_engine");
+static profiler::ProfileCounter del_var("COUNT_DeleteVariable", &debug_domain);
+
 void ThreadedEngine::DeleteVariable(SyncFn delete_fn,
                                     Context exec_ctx,
                                     VarHandle var) {
+  ++del_var;
   ThreadedVar* threaded_var = ThreadedVar::CastFromBase(var);
   this->PushAsync([delete_fn, threaded_var](RunContext ctx, CallbackOnComplete on_complete) {
       // Mark variable as orphan,

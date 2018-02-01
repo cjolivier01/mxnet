@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <vector>
 #include <string>
+#include "../profiler/profiler.h"
 #include "../executor/graph_executor.h"
 #include "../executor/exec_pass.h"
 #include "../c_api/c_api_common.h"
@@ -355,7 +356,7 @@ inline void PushFCompute(const FCompute& fn,
   std::vector<NDArray> inputs, outputs;
   DerefInputOutput(p_inputs, p_outputs, &inputs, &outputs);
   Engine::Get()->PushSync(
-    [=](RunContext rctx) {
+    [attrs, inputs, outputs, mutate_idx, requested, is_train, ctx](RunContext rctx) {
       std::vector<TBlob> input_blobs, output_blobs;
       // pre-fcompute and post-fcompute storage fallback src NDArrays and dst NDArrays
       std::vector<NDArray> pre_temp_src, pre_temp_dst, post_temp_dst, post_temp_src;
