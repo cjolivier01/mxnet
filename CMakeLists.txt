@@ -1,17 +1,15 @@
 cmake_minimum_required(VERSION 3.0.2)
 
-project(mxnet C CXX)
-
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/build/private/local_config.cmake)
   include(${CMAKE_CURRENT_SOURCE_DIR}/build/private/local_config.cmake)
 endif()
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Utils.cmake)
+include(cmake/Utils.cmake)
 
 #Some things have order. This must be put in front alone
 mxnet_option(USE_CUDA             "Build with CUDA support"   ON)
 mxnet_option(USE_OLDCMAKECUDA     "Build with old cmake cuda" OFF)
-mxnet_option(USE_NCCL             "Use NVidia NCCL with CUDA" OFF)
+mxnet_option(USE_NCCL             "Use NVidia NCCL with CUDA" ON IF USE_CUDA)
 mxnet_option(USE_OPENCV           "Build with OpenCV support" ON)
 mxnet_option(USE_OPENMP           "Build with Openmp support" ON)
 mxnet_option(USE_CUDNN            "Build with cudnn support"  ON) # one could set CUDNN_ROOT for search path
@@ -550,13 +548,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/nnvm/CMakeLists.txt")
   list(APPEND mxnet_LINKER_LIBS ${nnvm_LINKER_LIBS})
 endif()
 
-if(NOT MSVC)
-  # Only add c++11 flags and definitions after cuda compiling
-  add_definitions(-DDMLC_USE_CXX11)
-  add_definitions(-DMSHADOW_IN_CXX11)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-else()
+if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
 endif()
 
@@ -684,4 +676,3 @@ endif()
 set(LINT_DIRS "include src plugin cpp-package tests")
 set(EXCLUDE_PATH "src/operator/contrib/ctc_include")
 add_custom_target(mxnet_lint COMMAND ${CMAKE_COMMAND} -DMSVC=${MSVC} -DPYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} -DLINT_DIRS=${LINT_DIRS} -DPROJECT_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DPROJECT_NAME=mxnet -DEXCLUDE_PATH=${EXCLUDE_PATH} -P ${CMAKE_CURRENT_SOURCE_DIR}/dmlc-core/cmake/lint.cmake)
-
