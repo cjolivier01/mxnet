@@ -25,7 +25,7 @@
 #include <signal.h>
 #include <dmlc/logging.h>
 #include <mxnet/engine.h>
-#include "engine/profiler.h"
+#include "profiler/profiler.h"
 
 namespace mxnet {
 #if MXNET_USE_SIGNAL_HANDLER && DMLC_LOG_STACK_TRACE
@@ -45,12 +45,12 @@ class LibraryInitializer {
 #endif
 #if MXNET_USE_PROFILER
     // ensure profiler's constructor are called before atexit.
-    engine::Profiler::Get();
+    profiler::Profiler::Get();
     // DumpProfile will be called before engine's and profiler's destructor.
     std::atexit([](){
-      engine::Profiler* profiler = engine::Profiler::Get();
+      profiler::Profiler* profiler = profiler::Profiler::Get();
       if (profiler->IsEnableOutput()) {
-        profiler->DumpProfile();
+        profiler->DumpProfile(true);
       }
     });
 #endif
