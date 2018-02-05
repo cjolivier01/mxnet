@@ -334,7 +334,7 @@ elseif(UNIX)
 endif()
 
 # ---[ LAPack
-if(USE_LAPACK AND NOT MSVC)
+if(USE_LAPACK)
   add_definitions(-DMXNET_USE_LAPACK=1)
   list(APPEND mxnet_LINKER_LIBS lapack)
 else(USE_LAPACK)
@@ -610,7 +610,7 @@ endif()
 
 if(USE_OPENCV)
   add_executable(im2rec "tools/im2rec.cc")
-  target_link_libraries(im2rec mxnet ${mxnet_LINKER_LIBS} ${OpenCV_LIBS} dmlc)
+  target_link_libraries(im2rec ${BEGIN_WHOLE_ARCHIVE} mxnet ${END_WHOLE_ARCHIVE} ${mxnet_LINKER_LIBS} ${OpenCV_LIBS} dmlc)
 endif()
 
 target_link_libraries(mxnet PUBLIC dmlc)
