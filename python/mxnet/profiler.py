@@ -175,6 +175,9 @@ class Frame(object):
     performance per frame, where frame is the time period between frame begin and end points.
     When frames are displayed in Intel VTune Amplifier, they are displayed in a
     separate track, so they provide a way to visually separate this data from normal task data.
+    This is different from Task in that each 'Frame' duration will be a discretely-numbered
+    event in the VTune output, as well as its rate (frame-rate) shown.  This is analogous to
+    profiling each frame of some visual output, such as rendering a video game frame.
     """
     def __init__(self, domain, name):
         """Profiling Frame class constructor
