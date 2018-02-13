@@ -240,12 +240,13 @@ MXNET_DLL int MXDumpProfile();
 
 
 /*!
- * \brief Print aggregate stats to the console
+ * \brief Print aggregate stats to the a string
+ * \param out_str Will receive a pointer to the output string
  * \param reset Clear the aggregate stats after printing
  * \return 0 when success, -1 when failure happens.
  * \note
  */
-MXNET_DLL int MXDumpAggregateProfileStats(int reset);
+MXNET_DLL int MXAggregateProfileStatsPrint(const char **out_str, int reset);
 
 /*!
  * \brief Pause profiler tuning collection

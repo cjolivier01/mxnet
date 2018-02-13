@@ -21,7 +21,7 @@
 """Profiler setting methods."""
 from __future__ import absolute_import
 import ctypes
-from .base import _LIB, check_call, c_str, ProfileHandle, c_str_array
+from .base import _LIB, check_call, c_str, ProfileHandle, c_str_array, py_str
 
 def set_config(kwargs):
     """Set up the configure of profiler.
@@ -64,11 +64,17 @@ def dump():
     """
     check_call(_LIB.MXDumpProfile())
 
-def dump_aggregate_stats(reset=False):
-    """Dump profile aggregate stats to console.
+def aggregate_stats_str(reset=False):
+    """Return a printable string of aggregate profile stats.
+    Parameters
+    ----------
+    reset: boolean
+        Indicates whether to clean aggeregate statistical data collected up to this point
     """
+    debug_str = ctypes.c_char_p()
     do_reset = 1 if reset is True else 0
-    check_call(_LIB.MXDumpAggregateProfileStats(int(do_reset)))
+    check_call(_LIB.MXAggregateProfileStatsPrint(ctypes.byref(debug_str), int(do_reset)))
+    return py_str(debug_str.value)
 
 def pause():
     check_call(_LIB.MXProfilePause(int(1)))

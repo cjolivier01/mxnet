@@ -293,19 +293,24 @@ int MXSetProfilerConfig(int num_params, const char* const* keys, const char* con
   API_END();
 }
 
-int MXDumpAggregateProfileStats(int reset) {
-  mxnet::IgnoreProfileCallScope ignore;
+int MXAggregateProfileStatsPrint(const char **out_str, int reset) {
+  MXAPIThreadLocalEntry *ret = MXAPIThreadLocalStore::Get();
   API_BEGIN();
+    CHECK_NOTNULL(out_str);
 #if MXNET_USE_PROFILER
     profiler::Profiler *profiler = profiler::Profiler::Get();
     std::shared_ptr<profiler::AggregateStats> stats = profiler->GetAggregateStats();
+    std::ostringstream os;
     if (stats) {
-      stats->Dump(reset != 0);
+      stats->Dump(os, reset != 0);
     }
+    ret->ret_str = os.str();
 #else
     warn_not_built_with_profiler_enabled();
+    ret->ret_str.clear();
 #endif
-  API_END()
+    *out_str = (ret->ret_str).c_str();
+  API_END();
 }
 
 int MXDumpProfile() {

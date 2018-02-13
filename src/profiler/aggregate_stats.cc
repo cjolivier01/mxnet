@@ -43,83 +43,83 @@ void AggregateStats::OnProfileStat(const ProfileStat& stat) {
   stat.SaveAggregate(&stats_[stat.categories_.c_str()][stat.name_.c_str()]);
 }
 
-void AggregateStats::Dump(bool clear) {
+void AggregateStats::Dump(std::ostream& os, bool clear) {
   std::ios state(nullptr);
-  state.copyfmt(std::cout);
-  std::cout << std::endl
-            << "Profile Statistics." << std::endl
-            << "\tNote that counter items are counter values and not time units."
-            << std::endl;
+  state.copyfmt(os);
+  os << std::endl
+     << "Profile Statistics." << std::endl
+     << "\tNote that counter items are counter values and not time units."
+     << std::endl;
   std::unique_lock<std::mutex> lk(m_);
   for (auto type_iter = stats_.begin(), type_e_iter = stats_.end();
-      type_iter != type_e_iter; ++type_iter) {
+       type_iter != type_e_iter; ++type_iter) {
     const std::string& type = type_iter->first;
     const std::unordered_map<std::string, StatData>& mm = type_iter->second;
     if (!mm.empty()) {
-      std::cout << type << std::endl << "=================" << std::endl;
-      std::cout << std::setw(25) << std::left  << "Name"
-                << std::setw(16) << std::right << "Total Count"
-                << " "
-                << std::setw(16) << std::right
-                << "Time (ms)"
-                << " "
-                << std::setw(16) << std::right
-                << "Min Time (ms)"
-                << " "
-                << std::setw(16) << std::right
-                << "Max Time (ms)"
-                << " "
-                << std::setw(16) << std::right
-                << "Avg Time (ms)"
-                << std::endl;
-      std::cout << std::setw(25) << std::left  << "----"
-                << std::setw(16) << std::right << "-----------"
-                << " "
-                << std::setw(16) << std::right
-                << "---------"
-                << " "
-                << std::setw(16) << std::right
-                << "-------------"
-                << " "
-                << std::setw(16) << std::right
-                << "-------------"
-                << " "
-                << std::setw(16) << std::right
-                << "-------------"
-                << std::endl;
+      os << type << std::endl << "=================" << std::endl;
+      os << std::setw(25) << std::left  << "Name"
+         << std::setw(16) << std::right << "Total Count"
+         << " "
+         << std::setw(16) << std::right
+         << "Time (ms)"
+         << " "
+         << std::setw(16) << std::right
+         << "Min Time (ms)"
+         << " "
+         << std::setw(16) << std::right
+         << "Max Time (ms)"
+         << " "
+         << std::setw(16) << std::right
+         << "Avg Time (ms)"
+         << std::endl;
+      os << std::setw(25) << std::left  << "----"
+         << std::setw(16) << std::right << "-----------"
+         << " "
+         << std::setw(16) << std::right
+         << "---------"
+         << " "
+         << std::setw(16) << std::right
+         << "-------------"
+         << " "
+         << std::setw(16) << std::right
+         << "-------------"
+         << " "
+         << std::setw(16) << std::right
+         << "-------------"
+         << std::endl;
       for (auto iter = mm.begin(), e_iter = mm.end(); iter != e_iter; ++iter) {
         const StatData &data = iter->second;
         if (data.type_ == StatData::kDuration || data.type_ == StatData::kCounter) {
           const std::string &name = iter->first;
-          std::cout << std::setw(25) << std::left << name
-                    << std::setw(16) << std::right << data.total_count_;
-          std::cout << " "
-                    << std::fixed << std::setw(16) << std::setprecision(4) << std::right
-                    << MicroToMilli(data.total_aggregate_)
-                    << " "
-                    << std::fixed << std::setw(16) << std::setprecision(4) << std::right
-                    << MicroToMilli(data.min_aggregate_)
-                    << " "
-                    << std::fixed << std::setw(16) << std::setprecision(4) << std::right
-                    << MicroToMilli(data.max_aggregate_);
+          os << std::setw(25) << std::left << name
+             << std::setw(16) << std::right << data.total_count_;
+          os << " "
+             << std::fixed << std::setw(16) << std::setprecision(4) << std::right
+             << MicroToMilli(data.total_aggregate_)
+             << " "
+             << std::fixed << std::setw(16) << std::setprecision(4) << std::right
+             << MicroToMilli(data.min_aggregate_)
+             << " "
+             << std::fixed << std::setw(16) << std::setprecision(4) << std::right
+             << MicroToMilli(data.max_aggregate_);
           if (data.type_ == StatData::kCounter) {
-            std::cout << " "
-                      << std::fixed << std::setw(16) << std::setprecision(4) << std::right
-                      << (MicroToMilli(data.max_aggregate_ - data.min_aggregate_) / 2);
+            os << " "
+               << std::fixed << std::setw(16) << std::setprecision(4) << std::right
+               << (MicroToMilli(data.max_aggregate_ - data.min_aggregate_) / 2);
           } else {
-            std::cout << " "
-                      << std::fixed << std::setw(16) << std::setprecision(4) << std::right
-                      << (MicroToMilli(static_cast<double>(data.total_aggregate_)
-                                       / data.total_count_));
+            os << " "
+               << std::fixed << std::setw(16) << std::setprecision(4) << std::right
+               << (MicroToMilli(static_cast<double>(data.total_aggregate_)
+                                / data.total_count_));
           }
-          std::cout << std::endl;
+          os << std::endl;
         }
       }
-      std::cout << std::endl;
+      os << std::endl;
     }
   }
-  std::cout << std::flush;
-  std::cout.copyfmt(state);
+  os << std::flush;
+  os.copyfmt(state);
   if (clear) {
     stats_.clear();
   }

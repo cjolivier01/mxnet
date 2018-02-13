@@ -23,6 +23,7 @@
 #include <string>
 #include <map>
 #include <cstdint>
+#include <ostream>
 #include <mutex>
 #include "./profiler.h"
 
@@ -59,7 +60,7 @@ class AggregateStats {
    * \brief Print profliing statistics to console
    * \param clear Delete all of the current statistics after printing
    */
-  void Dump(bool clear);
+  void Dump(std::ostream& os, bool clear);
 
  private:
   /*! \brief Should rarely collide, so most locks should occur only in user-space (futex) */

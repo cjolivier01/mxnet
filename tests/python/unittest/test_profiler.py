@@ -22,7 +22,7 @@ from mxnet import profiler
 import time
 import os
 
-def enable_profiler(run=True, continuous_dump=False):
+def enable_profiler(run=True, continuous_dump=False, aggregate_stats=False):
     profile_filename = "test_profile.json"
     kwargs = [('profile_symbolic', True),
               ('profile_imperative', True),
@@ -30,6 +30,8 @@ def enable_profiler(run=True, continuous_dump=False):
               ('profile_api', True),
               ('file_name', profile_filename),
               ('continuous_dump', continuous_dump)]
+    if aggregate_stats is True:
+        kwargs.append(('aggregate_stats', 'true'))
     profiler.set_config(kwargs)
     print('profile file save to {0}'.format(profile_filename))
     if run is True:
@@ -195,7 +197,7 @@ def test_profile_counter(do_enable_profiler=True):
 
 
 def test_continuous_profile_and_instant_marker():
-    enable_profiler(True, True)
+    enable_profiler(True, True, True)
     python_domain = profiler.Domain('PythonDomain::test_continuous_profile')
     last_file_size = 0
     for i in range(10):
@@ -208,7 +210,9 @@ def test_continuous_profile_and_instant_marker():
         new_file_size = os.path.getsize("test_profile.json")
         assert new_file_size >= last_file_size
         last_file_size = new_file_size
-
+    debug_str = profiler.aggregate_stats_str()
+    assert(len(debug_str) > 0)
+    print(debug_str)
 
 if __name__ == '__main__':
     test_profile_create_domain()
