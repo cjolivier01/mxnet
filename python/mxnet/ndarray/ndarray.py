@@ -1843,6 +1843,11 @@ fixed-size items.
             raise ValueError("The current array is not a scalar")
         return self.asnumpy()[0]
 
+        # val = ctypes.c_double(0.0)
+        # check_call(_LIB.MXNDArrayGetScalarAsFloat64(
+        #     self.handle, ctypes.c_int(0), ctypes.byref(val)))
+        # return float(val.value)
+
     def astype(self, dtype):
         """Returns a copy of the array after casting to a specified type.
 

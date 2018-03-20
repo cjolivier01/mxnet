@@ -415,6 +415,8 @@ class Accuracy(EvalMetric):
         for label, pred_label in zip(labels, preds):
             if pred_label.shape != label.shape:
                 pred_label = ndarray.argmax(pred_label, axis=self.axis)
+
+            # 11111111111111111111111111111111111 -- 2.1s
             pred_label = pred_label.asnumpy().astype('int32')
             label = label.asnumpy().astype('int32')
 
@@ -422,6 +424,20 @@ class Accuracy(EvalMetric):
 
             self.sum_metric += (pred_label.flat == label.flat).sum()
             self.num_inst += len(pred_label.flat)
+
+            # 22222222222222222222222222222222222
+            # pred_label = ndarray.cast(data=pred_label, dtype='int32')
+            # pred_label = pred_label.reshape((pred_label.size))
+            #
+            # label = ndarray.cast(data=label, dtype='int32')
+            # label = pred_label.reshape((label.size))
+            #
+            # check_label_shapes(label, pred_label)
+            #
+            # summed_pred = ndarray.sum(data=(pred_label == label))
+            #
+            # self.sum_metric += summed_pred.asscalar()
+            # self.num_inst += len(pred_label)
 
 
 @register

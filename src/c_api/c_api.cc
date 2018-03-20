@@ -43,6 +43,7 @@
 #include <memory>
 #include <functional>
 #include <utility>
+#include <dmlc/thread_group.h>
 #include "./c_api_common.h"
 #include "../operator/custom/custom-inl.h"
 
@@ -460,6 +461,88 @@ int MXNDArrayGetData(NDArrayHandle handle,
   } else {
     *out_pdata = nullptr;
   }
+  API_END();
+}
+
+#if MXNET_USE_CUDA
+/*!
+ * \brief Copy linear region of data from
+ * \param dst
+ * \param src
+ * \param src_offset
+ * \param dest_offset
+ * \param count
+ * \param stream
+ * \param async
+ */
+inline void CopyFlatRegionFromGPUToCPU(const TBlob& dst,
+                                       const TBlob& src,
+                                       const int src_offset,
+                                       const int dest_offset,
+                                       const size_t count,
+                                       mshadow::Stream<gpu> *stream,
+                                       const bool async = true) {
+  CHECK(src_offset + count <= src.Size());
+  CHECK(dest_offset + count <= dst.Size());
+  cudaStream_t strm = mshadow::Stream<gpu>::GetStream(stream);
+  MSHADOW_CUDA_CALL(cudaMemcpyAsync(dst.dptr_ + dest_offset, src.dptr_ + src_offset, count,
+                                    cudaMemcpyDeviceToHost, strm));
+  if(!async || strm) {
+    // use synchronize call behavior for zero stream
+    MSHADOW_CUDA_CALL(cudaStreamSynchronize(strm));
+  }
+}
+#endif // MXNET_USE_CUDA
+
+template<typename DestType>
+inline void GetScalarAt(NDArray *arr, mx_uint index, DestType *value) {
+  CHECK_NOTNULL(arr);
+  if (!arr->is_none()) {
+    NDArray cpuData({1}, Context(), false, arr->dtype());
+    const TBlob& to = cpuData.data();
+    if(arr->data().dev_mask() == Context::kCPU) {
+      dmlc::ManualEvent ev;
+      Engine::Get()->PushSync(
+        [&to, arr, index, value](RunContext rctx) {
+          MSHADOW_TYPE_SWITCH(to.type_flag_, DType, {
+            to.dptr<DType>()[0] = arr->data().dptr<DType>()[0];
+          });
+        }, arr->ctx(), {arr->var()}, {cpuData.var()},
+        FnProperty::kNormal, 0, PROFILER_MESSAGE("GetScalarAtCPU"));
+    } else {
+#if MXNET_USE_CUDA
+      Engine::Get()->PushAsync(
+        [&to, arr, value, index](RunContext rctx, Engine::CallbackOnComplete on_complete) {
+          CopyFlatRegionFromGPUToCPU(to, arr->data(), index, 0, 1, rctx.get_stream<gpu>(), false);
+          rctx.get_stream<gpu>()->Wait();
+          on_complete();
+        }, arr->ctx(), {arr->var()}, {cpuData.var()},
+        FnProperty::kCopyFromGPU, 0,
+        PROFILER_MESSAGE("GetScalarAtGPU"));
+#else
+      LOG(FATAL) << MXNET_GPU_NOT_ENABLED_ERROR;
+#endif
+    }
+    cpuData.WaitToRead();
+    MSHADOW_TYPE_SWITCH(to.type_flag_, DType, {
+      *value = static_cast<DestType>(to.dptr<DType>()[index]);
+    });
+  } else {
+    *value = std::numeric_limits<mx_float>::quiet_NaN();
+  }
+}
+
+extern "C" int MXNDArrayGetScalarAsFloat32(NDArrayHandle handle, mx_uint index, float *value) {
+  API_BEGIN();
+    NDArray *arr = static_cast<NDArray*>(handle);
+    GetScalarAt(arr, index, value);
+  API_END();
+}
+
+extern "C" int MXNDArrayGetScalarAsFloat64(NDArrayHandle handle, mx_uint index, double *value) {
+  API_BEGIN();
+    NDArray *arr = static_cast<NDArray*>(handle);
+    GetScalarAt(arr, index, value);
   API_END();
 }
 
