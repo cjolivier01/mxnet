@@ -76,7 +76,7 @@ def _create_kvstore(kvstore, num_device, arg_params):
     elif isinstance(kvstore, str):
         # create kvstore using the string type
         if (num_device is 1 and 'dist' not in kvstore) \
-              or os.getenv('MXNWT_KVSTORE_FORCE_DIST', 0) == 0:
+              or os.getenv('MXNET_KVSTORE_FORCE_DIST', 0) == 0:
             # no need to use kv for single device and single machine
             kv = None
         else:
