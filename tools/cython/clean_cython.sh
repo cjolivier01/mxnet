@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,10 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-SCRIPTDIR=$(realpath $(dirname $0))
-TOPDIR=$(realpath ${SCRIPTDIR}/../../)
-export LD_LIBRARY_PATH=${TOPDIR}/cmake-build-relwithdebinfo:${TOPDIR}/../cmake-build-relwithdebinfo/mxnet:$LD_LIBRARY_PATH
-export PYTHONPATH=${TOPDIR}/python:$PYTHONPATH
-cd ${TOPDIR}
-/opt/intel/vtune_amplifier_xe/bin64/amplxe-cl -collect hotspots -run-pass-thru=-timestamp=sys -knob analyze-openmp=true -knob sampling-interval=1 -knob enable-user-tasks=true -- /usr/bin/python3.5 $@
+ROOTDIR=$(realpath $(dirname $0))/../..
+#echo "Root dir: $ROOTDIR"
+for i in $(find $ROOTDIR/python/mxnet -name "*.so"); do rm -fv $i; done
+for i in $(find $ROOTDIR/python/mxnet -name "*.cxx"); do rm -fv $i; done
+for i in $(find $ROOTDIR/python/mxnet -type d -name "cython_debug"); do rm -rfv $i; done

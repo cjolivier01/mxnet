@@ -19,6 +19,7 @@
 #include <unordered_set>
 #include <iostream>
 #include "./imperative_utils.h"
+#include "../profiler/profiler.h"
 
 namespace mxnet {
 
@@ -402,8 +403,11 @@ void Imperative::CachedOp::Forward(
 
   const auto& dispatch_modes = g.GetAttr<DispatchModeVector>("dispatch_mode");
 
+  const int bsz = profiler::Profiler::Get()->AggregateRunning() ? 0 : param_.forward_bulk_size;
+
   if (recording && !inlining_) Imperative::Get()->set_is_recording(false);
-  int prev_bulk_size = Engine::Get()->set_bulk_size(param_.forward_bulk_size);
+  const int prev_bulk_size = Engine::Get()->set_bulk_size(
+    profiler::Profiler::Get()->AggregateRunning() ? 0 : param_.forward_bulk_size);
 
   Imperative::Get()->RunGraph(
       false, idx, arrays, 0, idx.num_nodes(), std::move(array_reqs),
@@ -485,7 +489,8 @@ void Imperative::CachedOp::Backward(
 
   const auto& dispatch_modes = g.GetAttr<DispatchModeVector>("dispatch_mode");
 
-  int prev_bulk_size = Engine::Get()->set_bulk_size(param_.backward_bulk_size);
+  const int prev_bulk_size = Engine::Get()->set_bulk_size(
+    profiler::Profiler::Get()->AggregateRunning() ? 0 : param_.backward_bulk_size);
 
   Imperative::Get()->RunGraph(
       retain_graph, idx, arrays, num_forward_nodes, idx.num_nodes(),

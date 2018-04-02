@@ -1342,13 +1342,14 @@ void GraphExecutor::InitOpSegs() {
   if (monitor_callback_) return;
 
   // Generate segments based on the graph structure
-  bool prefer_bulk_exec_inference = dmlc::GetEnv("MXNET_EXEC_BULK_EXEC_INFERENCE", true);
+  const bool prefer_bulk_exec_inference = dmlc::GetEnv("MXNET_EXEC_BULK_EXEC_INFERENCE", true);
+
   // Whether to perform bulk exec for training
   const profiler::Profiler *prof = profiler::Profiler::Get();
   bool prefer_bulk_exec = dmlc::GetEnv("MXNET_EXEC_BULK_EXEC_TRAIN", 1)
                           && (!prof || !prof->AggregateEnabled());
 
-  bool is_training = num_forward_nodes_ != total_num_nodes;
+  const bool is_training = num_forward_nodes_ != total_num_nodes;
 
   if (prefer_bulk_exec  && is_training) {
     this->BulkTrainingOpSegs(total_num_nodes);
@@ -1362,7 +1363,11 @@ void GraphExecutor::InitOpSegs() {
 
 void GraphExecutor::BulkTrainingOpSegs(size_t total_num_nodes) {
   // The maximum number of node in a segment executed in bulk
-  size_t num_nodes_threshold = dmlc::GetEnv("MXNET_EXEC_BULK_EXEC_MAX_NODE_TRAIN", 15);
+
+  const size_t num_nodes_threshold = dmlc::GetEnv("MXNET_EXEC_BULK_EXEC_MAX_NODE_TRAIN", 15U);
+
+//  const size_t num_nodes_threshold = profiler::Profiler::Get()->AggregateEnabled() ? 1 :
+//                                     dmlc::GetEnv("MXNET_EXEC_BULK_EXEC_MAX_NODE_TRAIN", 15U);
 
   // create forward segments for training
   size_t topo_start = 0;
