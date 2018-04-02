@@ -21,6 +21,10 @@
 #include "./imperative_utils.h"
 
 namespace mxnet {
+
+static profiler::ProfileDomain _generic_domain("generic");
+profiler::ProfileDomain *generic_domain = &_generic_domain;
+
 #if DMLC_CXX11_THREAD_LOCAL
 thread_local bool Imperative::is_train_ = false;
 thread_local bool Imperative::is_recording_ = false;
@@ -178,6 +182,8 @@ void Imperative::GetBackwardDependency(
       });
   }
 }
+
+profiler::ProfileTask get_gradient("pass::Gradient", generic_domain);
 
 void Imperative::RecordOp(
     nnvm::NodeAttrs&& attrs,
@@ -354,6 +360,10 @@ void Imperative::RunGraph(
   }
 }
 
+static profiler::ProfileDomain mxbwd_domain("MXBackward");
+profiler::ProfileTask infer_task("InferXXX", &mxbwd_domain);
+profiler::ProfileTask bwd_run_graph("bwd_run_graph", &mxbwd_domain);
+profiler::ProfileTask clear_history("clear_history", &mxbwd_domain);
 
 std::vector<NDArray*> Imperative::Backward(
     const std::vector<NDArray*>& outputs,
@@ -431,10 +441,13 @@ std::vector<NDArray*> Imperative::Backward(
         << "There are no inputs in computation graph that require gradients.";
   }
 
+
+  get_gradient.start();
   Graph g_graph = pass::Gradient(
       graph, graph.outputs, xs, ograd_entries,
       exec::AggregateGradient, nullptr, nullptr,
       zero_ops, "_copy");
+  get_gradient.stop();
   CHECK_EQ(g_graph.outputs.size(), xs.size());
   for (const auto &e : g_graph.outputs) {
     if (e.node->op() == nullptr) {
@@ -463,7 +476,9 @@ std::vector<NDArray*> Imperative::Backward(
   std::vector<OpStatePtr> states;
   std::vector<NDArray*> arrays;
   arrays.reserve(buff.size());
-  for (size_t i = 0; i < buff.size(); ++i) arrays.push_back(&buff[i]);
+  for (size_t i = 0; i < buff.size(); ++i) {
+    arrays.push_back(&buff[i]);
+  }
   if (create_graph) {
     states.resize(num_forward_nodes);
     nnvm::DFSVisit(sym.outputs, [&](const nnvm::NodePtr& n) {
@@ -514,6 +529,7 @@ std::vector<NDArray*> Imperative::Backward(
 
   // Infer shape type
   {
+    infer_task.start();
     std::pair<uint32_t, uint32_t> node_range, entry_range;
     node_range = {num_forward_nodes, idx.num_nodes()};
     entry_range = {num_forward_entries, idx.num_node_entries()};
@@ -538,6 +554,7 @@ std::vector<NDArray*> Imperative::Backward(
     for (const auto& i : vctx) dev_mask.emplace_back(i.dev_mask());
     CheckAndInferStorageType(&graph, std::move(dev_mask), std::move(stypes), false,
                              node_range, entry_range);
+    infer_task.stop();
   }
 
   // Calculate ref count
@@ -582,8 +599,10 @@ std::vector<NDArray*> Imperative::Backward(
   bool prev_training = set_is_training(is_train);
   int prev_bulk_size = Engine::Get()->set_bulk_size(backward_bulk_size_);
 
+  bwd_run_graph.start();
   RunGraph(retain_graph, idx, arrays, num_forward_nodes, idx.num_nodes(),
            std::move(array_reqs), std::move(ref_count), &states, dispatch_modes);
+  bwd_run_graph.stop();
 
   Engine::Get()->set_bulk_size(prev_bulk_size);
   set_is_recording(prev_recording);
@@ -591,10 +610,12 @@ std::vector<NDArray*> Imperative::Backward(
 
   // Clear history
   if (!retain_graph) {
+    clear_history.start();
     nnvm::DFSVisit(sym.outputs, [&](const nnvm::NodePtr& n) {
       AGInfo::Clear(n);
       n->inputs.clear();
     });
+    clear_history.stop();
   }
 
   if (variables.size()) {

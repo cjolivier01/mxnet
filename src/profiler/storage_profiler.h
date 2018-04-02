@@ -26,7 +26,6 @@
 
 namespace mxnet {
 namespace storage {
-
 /*!
  * \brief Storage allocation/deallocation profiling via ProfileCounters
  */
@@ -36,38 +35,58 @@ class DeviceStorageProfiler {
    * \brief Constructor
    */
   explicit DeviceStorageProfiler(const char *domain_name = "Device Storage")
-    : domain_(domain_name) {
+    : domain_(domain_name)
+      , alloc_duration_("DurationMemAlloc", &domain_)
+      , free_duration_("DurationMemFree", &domain_)  {
   }
 
   /*!
-   * \brief Called when memory has been allocated in order to record the allocation size
+   * \brief Called before memory has been allocated in order to record the allocation size
    * \param handle Handle to the allocated storage
    */
-  void OnAlloc(const Storage::Handle &handle) {
-    if (handle.size > 0) {
-      profiler::Profiler *prof = profiler::Profiler::Get();
-      if (prof->IsProfiling(profiler::Profiler::kMemory)) {
-        Init();
-        const size_t idx = prof->DeviceIndex(handle.ctx.dev_type, handle.ctx.dev_id);
-        CHECK_LT(idx, mem_counters_.size()) << "Invalid device index: " << idx;
-        *mem_counters_[idx] += handle.size;
-      }
+  void OnBeforeAlloc(const Storage::Handle &handle) {
+    if (handle.size > 0 && profiler::Profiler::Get()->IsProfiling(profiler::Profiler::kMemory)) {
+      Init();
+      alloc_duration_.start();
     }
   }
 
   /*!
-   * \brief Called when memory has been freed in order to record the deallocation size
+   * \brief Called after memory has been allocated in order to record the allocation size
    * \param handle Handle to the allocated storage
    */
-  void OnFree(const Storage::Handle &handle) {
-    if (handle.size > 0) {
-      profiler::Profiler *prof = profiler::Profiler::Get();
-      if (prof->IsProfiling(profiler::Profiler::kMemory)) {
-        Init();  // In case of bug which tries to free first
-        const size_t idx = prof->DeviceIndex(handle.ctx.dev_type, handle.ctx.dev_id);
+  void OnAfterAlloc(const Storage::Handle &handle) {
+    profiler::Profiler *profiler = profiler::Profiler::Get();
+    if (handle.size > 0 && profiler->IsProfiling(profiler::Profiler::kMemory)) {
+        alloc_duration_.stop();
+        const size_t idx = profiler->DeviceIndex(handle.ctx.dev_type, handle.ctx.dev_id);
         CHECK_LT(idx, mem_counters_.size()) << "Invalid device index: " << idx;
-        *mem_counters_[idx] -= handle.size;
-      }
+        *mem_counters_[idx] += handle.size;
+    }
+  }
+
+  /*!
+   * \brief Called before memory has been freed in order to record the deallocation size
+   * \param handle Handle to the allocated storage
+   */
+  void OnBeforeFree(const Storage::Handle &handle) {
+    if (handle.size > 0 && profiler::Profiler::Get()->IsProfiling(profiler::Profiler::kMemory)) {
+      Init();  // In case of bug which tries to free first
+      free_duration_.start();
+    }
+  }
+
+  /*!
+   * \brief Called after memory has been freed in order to record the deallocation size
+   * \param handle Handle to the allocated storage
+   */
+  void OnAfterFree(const Storage::Handle &handle) {
+    profiler::Profiler *profiler = profiler::Profiler::Get();
+    if (handle.size > 0 && profiler->IsProfiling(profiler::Profiler::kMemory)) {
+      free_duration_.stop();
+      const size_t idx = profiler->DeviceIndex(handle.ctx.dev_type, handle.ctx.dev_id);
+      CHECK_LT(idx, mem_counters_.size()) << "Invalid device index: " << idx;
+      *mem_counters_[idx] -= handle.size;
     }
   }
 
@@ -94,12 +113,14 @@ class DeviceStorageProfiler {
     }
   }
 
-  /*! \brief Domain of the memory profiling information */
-  profiler::ProfileDomain domain_;
   /*! \brief Mutex for lazy init */
   std::mutex init_mutex_;
+  /*! \brief Domain of the memory profiling information */
+  profiler::ProfileDomain domain_;
   /*! \brief Constant-sized vector of memory profile counters */
   std::vector<std::shared_ptr<profiler::ProfileCounter>> mem_counters_;
+  /*! \brief Time spent allocating and freeing memory */
+  profiler::ProfileTask alloc_duration_, free_duration_;
 };
 
 }  // namespace storage

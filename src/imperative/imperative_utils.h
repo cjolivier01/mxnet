@@ -29,11 +29,15 @@
 #include "../c_api/c_api_common.h"
 #include "../common/utils.h"
 #include "../common/exec_utils.h"
+#include "../profiler/profiler.h"
 
 #ifndef MXNET_IMPERATIVE_IMPERATIVE_UTILS_H_
 #define MXNET_IMPERATIVE_IMPERATIVE_UTILS_H_
 
 namespace mxnet {
+
+extern profiler::ProfileDomain *generic_domain;
+
 namespace imperative {
 
 struct MemoryPlanInfo {

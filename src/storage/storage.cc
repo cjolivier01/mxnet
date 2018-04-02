@@ -129,9 +129,10 @@ void StorageImpl::Alloc(Storage::Handle* handle) {
         return ptr;
       });
 
+  profiler_.OnBeforeAlloc(*handle);
   this->ActivateDevice(handle->ctx);
   manager->Alloc(handle);
-  profiler_.OnAlloc(*handle);
+  profiler_.OnAfterAlloc(*handle);
 }
 
 void StorageImpl::Free(Storage::Handle handle) {
@@ -142,9 +143,10 @@ void StorageImpl::Free(Storage::Handle handle) {
         LOG(FATAL) <<  "Cannot Free space to a device you have not allocated";
         return nullptr;
       });
+  profiler_.OnBeforeFree(handle);
   this->ActivateDevice(ctx);
   manager->Free(handle);
-  profiler_.OnFree(handle);
+  profiler_.OnAfterFree(handle);
 }
 
 void StorageImpl::DirectFree(Storage::Handle handle) {
@@ -155,9 +157,10 @@ void StorageImpl::DirectFree(Storage::Handle handle) {
         LOG(FATAL) <<  "Cannot Free space to a device you have not allocated";
         return nullptr;
       });
+  profiler_.OnBeforeFree(handle);
   this->ActivateDevice(ctx);
   manager->DirectFree(handle);
-  profiler_.OnFree(handle);
+  profiler_.OnAfterFree(handle);
 }
 
 void StorageImpl::SharedIncrementRefCount(Storage::Handle handle) {

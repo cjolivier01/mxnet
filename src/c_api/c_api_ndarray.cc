@@ -306,6 +306,9 @@ int MXAutogradBackward(mx_uint num_output,
                               nullptr, nullptr);
 }
 
+static profiler::ProfileDomain dom("TASK: MXAutogradBackwardEx");
+static profiler::ProfileTask taskMXAutogradBackwardEx("TASK: MXAutogradBackwardEx", &dom);
+
 int MXAutogradBackwardEx(mx_uint num_output,
                          NDArrayHandle *output_handles,
                          NDArrayHandle *ograd_handles,
@@ -318,7 +321,7 @@ int MXAutogradBackwardEx(mx_uint num_output,
                          int **grad_stypes) {
   MXAPIThreadLocalEntry *ret = MXAPIThreadLocalStore::Get();
   API_BEGIN();
-
+  taskMXAutogradBackwardEx.start();
   std::vector<NDArray*> outputs, ograds, variables;
   outputs.reserve(num_output);
   for (mx_uint i = 0; i < num_output; ++i) {
@@ -340,7 +343,7 @@ int MXAutogradBackwardEx(mx_uint num_output,
   }
 
   auto grads = Imperative::Get()->Backward(outputs, ograds, variables, is_train,
-                                                  retain_graph, create_graph);
+                                           retain_graph, create_graph);
   if (num_variables != 0) {
     ret->ret_handles.clear();
     ret->out_types.clear();
@@ -353,6 +356,7 @@ int MXAutogradBackwardEx(mx_uint num_output,
     *grad_handles = dmlc::BeginPtr(ret->ret_handles);
     *grad_stypes = dmlc::BeginPtr(ret->out_types);
   }
+  taskMXAutogradBackwardEx.stop();
   API_END();
 }
 

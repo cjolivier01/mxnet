@@ -193,6 +193,7 @@ class VTuneTask {
   inline VTuneTask(const char *name, VTuneDomain *domain) throw()
     : name_(__itt_string_handle_create(name))
       , domain_(domain) {
+    CHECK_NOTNULL(domain);
   }
 
   inline void start() { __itt_task_begin(domain()->dom(), __itt_null, __itt_null, name_); }
