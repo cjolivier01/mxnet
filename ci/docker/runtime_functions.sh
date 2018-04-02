@@ -336,7 +336,6 @@ build_ubuntu_gpu_cmake() {
         -DUSE_CUDNN=1              \
         -DUSE_MKLML_MKL=0          \
         -DUSE_MKLDNN=0             \
-        -DCUDA_ARCH_NAME=Fermi     \
         -DCMAKE_BUILD_TYPE=Release \
         -G Ninja                   \
         /work/mxnet
