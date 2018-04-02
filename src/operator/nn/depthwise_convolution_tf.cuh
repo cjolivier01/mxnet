@@ -32,6 +32,37 @@
 namespace tf {
 namespace depthwise_conv {
 
+#if __CUDA_ARCH__ < 300
+#define MAX_BLOCK 512
+constexpr int kWarpSize = 32;
+template<typename DType>
+__forceinline__ __device__ DType __fake_shfl_down(DType val, int offset, int width=kWarpSize) {
+  static __shared__ DType shared[MAX_BLOCK];
+  int lane = threadIdx.x % kWarpSize;
+
+  shared[threadIdx.x] = val;
+  __syncthreads();
+  val = (lane + offset < width) ? shared[threadIdx.x + offset] : 0;
+  __syncthreads();
+
+  return val;
+}
+#define __shfl_down __fake_shfl_down
+
+template<typename DType>
+__forceinline__ __device__ DType __fake_shfl_xor(DType var, int laneMask)
+{
+  static __shared__ DType smem[MAX_BLOCK];
+  smem[threadIdx.x] = var;
+  __threadfence_block();
+  const int warp_id = threadIdx.x / kWarpSize;
+  const int lane_id = threadIdx.x % kWarpSize;
+  return laneMask >= 0 && laneMask < kWarpSize
+         ? smem[kWarpSize * warp_id + (lane_id ^ laneMask)] : var;
+}
+#define __shfl_xor __fake_shfl_xor
+#endif  // __CUDA_ARCH__ < 300
+
 #define FULL_WARP_MASK 0xFFFFFFFF
 #if CUDA_VERSION < 9000
 template<typename DType>
