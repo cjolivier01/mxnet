@@ -28,8 +28,8 @@ mxnet_option(USE_CUDNN            "Build with cudnn support"  ON) # one could se
 mxnet_option(USE_SSE              "Build with x86 SSE instruction support" ON IF NOT ARM)
 mxnet_option(USE_F16C             "Build with x86 F16C instruction support" ON) # autodetects support if ON
 mxnet_option(USE_LAPACK           "Build with lapack support" ON)
-mxnet_option(USE_MKL_IF_AVAILABLE "Use MKL if found" ON)
-mxnet_option(USE_MKLDNN           "Build with MKL-DNN support" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE) AND (NOT MSVC) AND (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64") AND (NOT CMAKE_CROSSCOMPILING))
+mxnet_option(USE_MKL_IF_AVAILABLE "Use MKL if found" OFF)
+mxnet_option(USE_MKLDNN           "" ON)
 mxnet_option(USE_OPERATOR_TUNING  "Enable auto-tuning of operators" ON IF NOT MSVC)
 mxnet_option(USE_GPERFTOOLS       "Build with GPerfTools support" OFF)
 mxnet_option(USE_JEMALLOC         "Build with Jemalloc support"   ON)
@@ -240,7 +240,7 @@ if(USE_TENSORRT)
 endif()
 
 # please note that when you enable this, you might run into an linker not being able to work properly due to large code injection.
-# you can find more information here https://github.com/apache/incubator-mxnet/issues/15971 
+# you can find more information here https://github.com/apache/incubator-mxnet/issues/15971
 if(ENABLE_TESTCOVERAGE)
   message(STATUS "Compiling with test coverage support enabled. This will result in additional files being written to your source directory!")
   find_program( GCOV_PATH gcov )
@@ -711,8 +711,8 @@ if(UNIX)
   list(APPEND MXNET_INSTALL_TARGETS mxnet_static)
   add_library(mxnet_static STATIC ${SOURCE})
   add_library(mxnet SHARED ${DUMMY_SOURCE})
-  target_link_libraries(mxnet PRIVATE ${BEGIN_WHOLE_ARCHIVE} $<TARGET_FILE:mxnet_static> ${END_WHOLE_ARCHIVE})
-  target_link_libraries(mxnet PRIVATE mxnet_static)
+  target_link_libraries(mxnet PRIVATE ${BEGIN_WHOLE_ARCHIVE} $<TARGET_FILE:mxnet_static> ${END_WHOLE_ARCHIVE} pthread)
+  target_link_libraries(mxnet PRIVATE mxnet_static )
   target_link_libraries(mxnet_static PUBLIC ${CMAKE_DL_LIBS})
   target_compile_options(sample_lib PUBLIC -shared)
   set_target_properties(mxnet_static PROPERTIES OUTPUT_NAME mxnet)
@@ -807,7 +807,7 @@ if(MSVC AND USE_MXNET_LIB_NAMING)
   set_target_properties(mxnet PROPERTIES OUTPUT_NAME "libmxnet")
 endif()
 
-add_subdirectory(tests)
+#add_subdirectory(tests)
 
 include(GNUInstallDirs)
 install(TARGETS ${MXNET_INSTALL_TARGETS}
@@ -880,10 +880,10 @@ set(EXCLUDE_PATH "src/operator/contrib/ctc_include")
 add_custom_target(mxnet_lint COMMAND ${CMAKE_COMMAND} -DMSVC=${MSVC} -DPYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} -DLINT_DIRS=${LINT_DIRS} -DPROJECT_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DPROJECT_NAME=mxnet -DEXCLUDE_PATH=${EXCLUDE_PATH} -P ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/dmlc-core/cmake/lint.cmake)
 
 if(BUILD_CYTHON_MODULES)
-  include(cmake/BuildCythonModules.cmake)
-  add_cython_modules(2) # Build cython module for python2 if python2 is found
-  add_cython_modules(3) # Build cython module for python3 if python3 is found
-  if((NOT ${PYTHON2_FOUND}) AND (NOT ${PYTHON3_FOUND}))
-    message(FATAL_ERROR "No python interpreter found to build cython modules")
-  endif()
+#  include(cmake/BuildCythonModules.cmake)
+#  add_cython_modules(2) # Build cython module for python2 if python2 is found
+#  add_cython_modules(3) # Build cython module for python3 if python3 is found
+#  if((NOT ${PYTHON2_FOUND}) AND (NOT ${PYTHON3_FOUND}))
+#    message(FATAL_ERROR "No python interpreter found to build cython modules")
+#  endif()
 endif()

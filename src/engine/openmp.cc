@@ -21,6 +21,10 @@
 #include <dmlc/parameter.h>
 #include <climits>
 #include "./openmp.h"
+#include <unistd.h>
+
+#define HERE() printf("ENTER %d -> %s\n", getpid(), __FUNCTION__); fflush(stdout);
+#define LEAVE() printf("LEAVE %d -> %s\n", getpid(), __FUNCTION__); fflush(stdout);
 
 namespace mxnet {
 namespace engine {
@@ -62,14 +66,17 @@ OpenMP::OpenMP()
 }
 
 void OpenMP::on_start_worker_thread(bool use_omp) {
+  HERE();
 #ifdef _OPENMP
   if (!omp_num_threads_set_in_environment_) {
     omp_set_num_threads(use_omp ? GetRecommendedOMPThreadCount(true) : 1);
   }
 #endif
+  LEAVE();
 }
 
 void OpenMP::set_reserve_cores(int cores) {
+  HERE();
   CHECK_GE(cores, 0);
   reserve_cores_ = cores;
 #ifdef _OPENMP
@@ -79,11 +86,14 @@ void OpenMP::set_reserve_cores(int cores) {
     omp_set_num_threads(omp_thread_max_ - reserve_cores_);
   }
 #endif
+  LEAVE();
 }
 
 int OpenMP::GetRecommendedOMPThreadCount(bool exclude_reserved) const {
 #ifdef _OPENMP
+  HERE();
   if (omp_num_threads_set_in_environment_) {
+    LEAVE();
     return omp_get_max_threads();
   }
   if (enabled_) {
@@ -97,10 +107,13 @@ int OpenMP::GetRecommendedOMPThreadCount(bool exclude_reserved) const {
     }
     // Check that OMP doesn't suggest more than our 'omp_thread_max_' value
     if (!omp_thread_max_ || thread_count < omp_thread_max_) {
+      LEAVE();
       return thread_count;
     }
+    LEAVE();
     return omp_thread_max_;
   }
+  LEAVE();
   return 1;
 #else
   return 1;
