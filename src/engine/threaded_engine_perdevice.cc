@@ -35,9 +35,6 @@
 #include "../common/utils.h"
 #include <unistd.h>
 
-#define HERE() printf("ENTER %d -> %s\n", getpid(), __FUNCTION__); fflush(stdout);
-#define LEAVE() printf("LEAVE %d -> %s\n", getpid(), __FUNCTION__); fflush(stdout);
-
 namespace mxnet {
 namespace engine {
 /*!

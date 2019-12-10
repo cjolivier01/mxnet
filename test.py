@@ -25,18 +25,20 @@ def train():
     try:
         print("Start training...")
         train_data = SQuAD('train')
-        dataloader = gluon.data.DataLoader(train_data.transform(Transform()),batch_size=128, shuffle=True, num_workers=1)
+        dataloader = gluon.data.DataLoader(train_data.transform(Transform()),batch_size=128, shuffle=True, num_workers=4)
         net = nn.HybridSequential()
         net.add(nn.Dense(10))
-        net.initialize(mx.init.Xavier(), ctx=mx.gpu(0))
+        #net.initialize(mx.init.Xavier(), ctx=mx.gpu(0))
+        net.initialize(mx.init.Xavier()) # CPU
         print(net)
         print("Done training")
     except:
         print("Exception training")
+
+a = mx.nd.zeros([1,2,3])
 
 p = Process(target=train)
 print('Forking...')
 p.start()
 print('Forked.')
 p.join()
-

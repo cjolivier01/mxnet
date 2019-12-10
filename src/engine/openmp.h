@@ -74,6 +74,8 @@ class OpenMP {
    */
   void on_start_worker_thread(bool use_omp);
 
+  void initialize_process();
+
   /*!
    * \brief Get the OpenMP object's singleton pointer
    * \return Singleton OpenMP object pointer

@@ -445,6 +445,15 @@ endif()
 
 # ---[ OpenMP
 if(USE_OPENMP)
+
+  function(load_omp)
+    # Intel/llvm OpenMP: https://github.com/llvm-mirror/openmp
+    set(OPENMP_STANDALONE_BUILD TRUE)
+    set(LIBOMP_ENABLE_SHARED TRUE)
+    set(CMAKE_BUILD_TYPE Release)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/openmp)
+  endfunction()
+
   find_package(OpenMP REQUIRED)
   # This should build on Windows, but there's some problem and I don't have a Windows box, so
   # could a Windows user please fix?
@@ -452,11 +461,7 @@ if(USE_OPENMP)
      AND SYSTEM_ARCHITECTURE STREQUAL "x86_64"
      AND NOT MSVC
      AND NOT CMAKE_CROSSCOMPILING)
-
-    # Intel/llvm OpenMP: https://github.com/llvm-mirror/openmp
-    set(OPENMP_STANDALONE_BUILD TRUE)
-    set(LIBOMP_ENABLE_SHARED TRUE)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/openmp)
+    load_omp()
     list(REMOVE_ITEM mxnet_LINKER_LIBS iomp5)
     list(APPEND mxnet_LINKER_LIBS omp)
     if(UNIX)
@@ -511,15 +516,13 @@ add_subdirectory(${GTEST_ROOT})
 find_package(GTest REQUIRED)
 
 # cudnn detection
-if(USE_CUDNN)
-  find_package(CUDNN)
-  if(CUDNN_FOUND)
+if(USE_CUDNN AND USE_CUDA)
+  detect_cuDNN()
+  if(HAVE_CUDNN)
     add_definitions(-DUSE_CUDNN)
     include_directories(SYSTEM ${CUDNN_INCLUDE})
     list(APPEND mxnet_LINKER_LIBS ${CUDNN_LIBRARY})
-    add_definitions(-DMSHADOW_USE_CUDNN=1)
-  else()
-    set(USE_CUDNN OFF)
+      add_definitions(-DMSHADOW_USE_CUDNN=1)
   endif()
 endif()
 
@@ -720,8 +723,8 @@ if(UNIX)
   list(APPEND MXNET_INSTALL_TARGETS mxnet_static)
   add_library(mxnet_static STATIC ${SOURCE})
   add_library(mxnet SHARED ${DUMMY_SOURCE})
-  target_link_libraries(mxnet PRIVATE ${BEGIN_WHOLE_ARCHIVE} $<TARGET_FILE:mxnet_static> ${END_WHOLE_ARCHIVE} pthread)
-  target_link_libraries(mxnet PRIVATE mxnet_static )
+  target_link_libraries(mxnet PRIVATE ${BEGIN_WHOLE_ARCHIVE} $<TARGET_FILE:mxnet_static> ${END_WHOLE_ARCHIVE})
+  target_link_libraries(mxnet PRIVATE mxnet_static)
   target_link_libraries(mxnet_static PUBLIC ${CMAKE_DL_LIBS})
   target_compile_options(sample_lib PUBLIC -shared)
   set_target_properties(mxnet_static PROPERTIES OUTPUT_NAME mxnet)
@@ -816,7 +819,7 @@ if(MSVC AND USE_MXNET_LIB_NAMING)
   set_target_properties(mxnet PROPERTIES OUTPUT_NAME "libmxnet")
 endif()
 
-#add_subdirectory(tests)
+add_subdirectory(tests)
 
 include(GNUInstallDirs)
 install(TARGETS ${MXNET_INSTALL_TARGETS}
@@ -889,10 +892,10 @@ set(EXCLUDE_PATH "src/operator/contrib/ctc_include")
 add_custom_target(mxnet_lint COMMAND ${CMAKE_COMMAND} -DMSVC=${MSVC} -DPYTHON_EXECUTABLE=${PYTHON_EXECUTABLE} -DLINT_DIRS=${LINT_DIRS} -DPROJECT_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DPROJECT_NAME=mxnet -DEXCLUDE_PATH=${EXCLUDE_PATH} -P ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/dmlc-core/cmake/lint.cmake)
 
 if(BUILD_CYTHON_MODULES)
-#  include(cmake/BuildCythonModules.cmake)
-#  add_cython_modules(2) # Build cython module for python2 if python2 is found
-#  add_cython_modules(3) # Build cython module for python3 if python3 is found
-#  if((NOT ${PYTHON2_FOUND}) AND (NOT ${PYTHON3_FOUND}))
-#    message(FATAL_ERROR "No python interpreter found to build cython modules")
-#  endif()
+  include(cmake/BuildCythonModules.cmake)
+  add_cython_modules(2) # Build cython module for python2 if python2 is found
+  add_cython_modules(3) # Build cython module for python3 if python3 is found
+  if((NOT ${PYTHON2_FOUND}) AND (NOT ${PYTHON3_FOUND}))
+    message(FATAL_ERROR "No python interpreter found to build cython modules")
+  endif()
 endif()

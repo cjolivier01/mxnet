@@ -228,6 +228,7 @@ void LibraryInitializer::atfork_child() {
 #if MXNET_USE_OPENCV && !__APPLE__
   cv::setNumThreads(mp_cv_num_threads_);
 #endif  // MXNET_USE_OPENCV
+  engine::OpenMP::Get()->initialize_process();
   engine::OpenMP::Get()->set_thread_max(1);
   engine::OpenMP::Get()->set_enabled(false);
   Engine::Get()->Start();
@@ -238,6 +239,7 @@ void LibraryInitializer::atfork_child() {
 
 void LibraryInitializer::install_pthread_atfork_handlers() {
   HERE();
+  engine::OpenMP::Get()->initialize_process();
 #ifndef _WIN32
   pthread_atfork(pthread_atfork_prepare, pthread_atfork_parent, pthread_atfork_child);
 #endif
