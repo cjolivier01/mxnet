@@ -33,7 +33,6 @@
 #include "./thread_pool.h"
 #include "../common/lazy_alloc_array.h"
 #include "../common/utils.h"
-#include <unistd.h>
 
 namespace mxnet {
 namespace engine {

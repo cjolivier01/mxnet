@@ -34,11 +34,6 @@
 #include "common/utils.h"
 #include "engine/openmp.h"
 
-#include <unistd.h>
-
-#define HERE() printf("ENTER %d -> %s\n", getpid(), __FUNCTION__); fflush(stdout);
-#define LEAVE() printf("LEAVE %d -> %s\n", getpid(), __FUNCTION__); fflush(stdout);
-
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WINDOWS__)
 #include <windows.h>
@@ -75,24 +70,18 @@ static void SegfaultLogger(int sig) {
 // pthread_atfork handlers, delegated to LibraryInitializer members.
 
 void pthread_atfork_prepare() {
-  HERE();
   LibraryInitializer* library_initializer = LibraryInitializer::Get();
   library_initializer->atfork_prepare();
-  LEAVE();
 }
 
 void pthread_atfork_parent() {
-  HERE();
   LibraryInitializer* library_initializer = LibraryInitializer::Get();
   library_initializer->atfork_parent();
-  LEAVE();
 }
 
 void pthread_atfork_child() {
-  HERE();
   LibraryInitializer* library_initializer = LibraryInitializer::Get();
   library_initializer->atfork_child();
-  LEAVE();
 }
 
 // LibraryInitializer member functions
@@ -102,8 +91,6 @@ LibraryInitializer::LibraryInitializer()
     mp_worker_nthreads_(dmlc::GetEnv("MXNET_MP_WORKER_NTHREADS", 1)),
     cpu_worker_nthreads_(dmlc::GetEnv("MXNET_CPU_WORKER_NTHREADS", 1)),
     mp_cv_num_threads_(dmlc::GetEnv("MXNET_MP_OPENCV_NUM_THREADS", 0)) {
-  printf("LibraryInitializer::LibraryInitializer()\n");
-  fflush(stdout);
   dmlc::InitLogging("mxnet");
   engine::OpenMP::Get();   // force OpenMP initialization
   install_signal_handlers();
@@ -111,7 +98,6 @@ LibraryInitializer::LibraryInitializer()
 }
 
 LibraryInitializer::~LibraryInitializer() {
-  HERE();
   close_open_libs();
 }
 
@@ -205,23 +191,18 @@ bool LibraryInitializer::was_forked() const {
 }
 
 void LibraryInitializer::atfork_prepare() {
-  HERE();
   using op::custom::CustomOperator;
   CustomOperator::Get()->Stop();
   Engine::Get()->Stop();
-  LEAVE();
 }
 
 void LibraryInitializer::atfork_parent() {
-  HERE();
   using op::custom::CustomOperator;
   Engine::Get()->Start();
   CustomOperator::Get()->Start();
-  LEAVE();
 }
 
 void LibraryInitializer::atfork_child() {
-  HERE();
   using op::custom::CustomOperator;
   // Conservative thread management for multiprocess workers
   this->cpu_worker_nthreads_ = this->mp_worker_nthreads_;
@@ -233,13 +214,10 @@ void LibraryInitializer::atfork_child() {
   engine::OpenMP::Get()->set_enabled(false);
   Engine::Get()->Start();
   CustomOperator::Get()->Start();
-  LEAVE();
 }
 
 
 void LibraryInitializer::install_pthread_atfork_handlers() {
-  HERE();
-  engine::OpenMP::Get()->initialize_process();
 #ifndef _WIN32
   pthread_atfork(pthread_atfork_prepare, pthread_atfork_parent, pthread_atfork_child);
 #endif
