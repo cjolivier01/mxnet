@@ -219,7 +219,7 @@ void LibraryInitializer::atfork_child() {
 
 void LibraryInitializer::install_pthread_atfork_handlers() {
 #ifndef _WIN32
-  engine::OpenMP::Get()->initialize_process();
+  engine::OpenMP::Get()->initialize_process();  // force omp to set its atfork handler first
   pthread_atfork(pthread_atfork_prepare, pthread_atfork_parent, pthread_atfork_child);
 #endif
 }
